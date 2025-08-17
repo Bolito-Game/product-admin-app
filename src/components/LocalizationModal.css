@@ -1,0 +1,99 @@
+/* src/components/LocalizationModal.css */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 1200px;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal-body {
+  overflow-y: auto; /* Makes the table scrollable if it's too long */
+}
+
+.modal-body table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.modal-body th, .modal-body td {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  text-align: left;
+}
+
+.modal-body input, .modal-body textarea {
+  width: 100%;
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+.modal-body textarea {
+  min-height: 60px;
+  resize: vertical;
+}
+
+.delete-loc-button {
+  background-color: #e74c3c;
+  color: white;
+}
+.delete-loc-button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+
+.modal-footer {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #ccc;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-footer .save-button {
+  background-color: var(--color-accent);
+  margin-left: 10px;
+}
+.modal-footer .cancel-button {
+  background-color: #7f8c8d;
+}

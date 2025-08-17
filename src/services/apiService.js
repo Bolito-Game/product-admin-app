@@ -26,23 +26,112 @@ async function graphqlRequest(query, variables = {}) {
     throw new Error(`API request failed with status ${response.status}`);
   }
 
-  return response.json();
+  const result = await response.json();
+  
+  if (result.errors) {
+    throw new Error(result.errors[0].message || "GraphQL error occurred");
+  }
+  
+  return result.data;
 }
 
 // Specific API functions based on your schema
 export const apiService = {
-  getProducts: (limit = 20, nextToken = null) => {
+  // Query operations
+  getProductBySku: (sku, lang = "en", country = "us") => {
+    const query = `
+      query GetProductBySku($sku: ID!, $lang: String, $country: String) {
+        getProductBySku(sku: $sku, lang: $lang, country: $country) {
+          sku
+          category
+          imageUrl
+          productStatus
+          quantityInStock
+          localizations {
+            lang
+            country
+            categoryText
+            productName
+            description
+            price
+            currency
+          }
+        }
+      }
+    `;
+    return graphqlRequest(query, { sku, lang, country });
+  },
+
+  getProductsByCategory: (category, lang = "en", country = "us") => {
+    const query = `
+      query GetProductsByCategory($category: String!, $lang: String, $country: String) {
+        getProductsByCategory(category: $category, lang: $lang, country: $country) {
+          sku
+          category
+          imageUrl
+          productStatus
+          quantityInStock
+          localizations {
+            lang
+            country
+            categoryText
+            productName
+            description
+            price
+            currency
+          }
+        }
+      }
+    `;
+    return graphqlRequest(query, { category, lang, country });
+  },
+
+  getAllProductsByLocalization: (lang = "en", country = "us", limit = 20, nextToken = null) => {
+    const query = `
+      query GetAllProductsByLocalization($lang: String, $country: String, $limit: Int, $nextToken: String) {
+        getAllProductsByLocalization(lang: $lang, country: $country, limit: $limit, nextToken: $nextToken) {
+          items {
+            sku
+            category
+            imageUrl
+            productStatus
+            quantityInStock
+            localizations {
+              lang
+              country
+              categoryText
+              productName
+              description
+              price
+              currency
+            }
+          }
+          nextToken
+        }
+      }
+    `;
+    return graphqlRequest(query, { lang, country, limit, nextToken });
+  },
+
+  getAllProducts: (limit = 20, nextToken = null) => {
     const query = `
       query GetAllProducts($limit: Int, $nextToken: String) {
         getAllProducts(limit: $limit, nextToken: $nextToken) {
           items {
-            SKU
-            Product_Name
-            Category
-            Description
-            Price
-            Quantity_In_Stock
-            Product_Status
+            sku
+            category
+            imageUrl
+            productStatus
+            quantityInStock
+            localizations {
+              lang
+              country
+              categoryText
+              productName
+              description
+              price
+              currency
+            }
           }
           nextToken
         }
@@ -51,13 +140,25 @@ export const apiService = {
     return graphqlRequest(query, { limit, nextToken });
   },
 
+  // Mutation operations
   createProduct: (input) => {
     const mutation = `
       mutation CreateProduct($input: CreateProductInput!) {
         createProduct(input: $input) {
-          success
-          product { SKU }
-          errors { message }
+          sku
+          category
+          imageUrl
+          productStatus
+          quantityInStock
+          localizations {
+            lang
+            country
+            categoryText
+            productName
+            description
+            price
+            currency
+          }
         }
       }
     `;
@@ -68,9 +169,20 @@ export const apiService = {
     const mutation = `
       mutation UpdateProduct($input: UpdateProductInput!) {
         updateProduct(input: $input) {
-          success
-          product { SKU }
-          errors { message }
+          sku
+          category
+          imageUrl
+          productStatus
+          quantityInStock
+          localizations {
+            lang
+            country
+            categoryText
+            productName
+            description
+            price
+            currency
+          }
         }
       }
     `;
@@ -79,13 +191,98 @@ export const apiService = {
 
   deleteProduct: (sku) => {
     const mutation = `
-      mutation DeleteProduct($SKU: ID!) {
-        deleteProduct(SKU: $SKU) {
-          success
-          errors { message }
+      mutation DeleteProduct($sku: ID!) {
+        deleteProduct(sku: $sku) {
+          sku
+          category
+          imageUrl
+          productStatus
+          quantityInStock
+          localizations {
+            lang
+            country
+            categoryText
+            productName
+            description
+            price
+            currency
+          }
         }
       }
     `;
-    return graphqlRequest(mutation, { SKU: sku });
+    return graphqlRequest(mutation, { sku });
+  },
+
+  // Localization-specific mutations
+  addLocalization: (sku, localization) => {
+    const mutation = `
+      mutation AddLocalization($sku: ID!, $localization: LocalizationInput!) {
+        addLocalization(sku: $sku, localization: $localization) {
+          sku
+          category
+          imageUrl
+          productStatus
+          quantityInStock
+          localizations {
+            lang
+            country
+            categoryText
+            productName
+            description
+            price
+            currency
+          }
+        }
+      }
+    `;
+    return graphqlRequest(mutation, { sku, localization });
+  },
+
+  updateLocalization: (sku, localization) => {
+    const mutation = `
+      mutation UpdateLocalization($sku: ID!, $localization: LocalizationInput!) {
+        updateLocalization(sku: $sku, localization: $localization) {
+          sku
+          category
+          imageUrl
+          productStatus
+          quantityInStock
+          localizations {
+            lang
+            country
+            categoryText
+            productName
+            description
+            price
+            currency
+          }
+        }
+      }
+    `;
+    return graphqlRequest(mutation, { sku, localization });
+  },
+
+  removeLocalization: (sku, lang, country) => {
+    const mutation = `
+      mutation RemoveLocalization($sku: ID!, $lang: String!, $country: String!) {
+        removeLocalization(sku: $sku, lang: $lang, country: $country) {
+          sku
+          category
+          imageUrl
+          productStatus
+          quantityInStock
+          localizations {
+            lang
+            country
+            categoryText
+            productName
+            description
+            price
+            currency
+          }
+        }
+      }
+    `;
+    return graphqlRequest(mutation, { sku, lang, country });
   },
 };
