@@ -1,4 +1,3 @@
-// src/components/LocalizationModal.jsx
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../services/apiService';
 import Spinner from './Spinner';
@@ -22,12 +21,15 @@ function LocalizationModal({ product, isOpen, onClose, onSave }) {
   const [originalLocalizations, setOriginalLocalizations] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [submitted, setSubmitted] = useState(false); // Track if save has been attempted
 
   useEffect(() => {
     if (product && product.localizations) {
       const copiedLocalizations = deepCopy(product.localizations);
       setLocalizations(copiedLocalizations);
       setOriginalLocalizations(deepCopy(copiedLocalizations));
+      setSubmitted(false); // Reset submission state when modal opens/re-opens
+      setError('');
     }
   }, [product, isOpen]);
 
@@ -53,12 +55,13 @@ function LocalizationModal({ product, isOpen, onClose, onSave }) {
   };
 
   const handleSaveChanges = async () => {
+    setSubmitted(true); // Mark that a save attempt has been made
     setIsSaving(true);
     setError('');
 
     for (const loc of localizations) {
       if (!loc.lang || !loc.country || !loc.productName) {
-        setError('Please fill in Lang, Country, and Product Name for all localizations.');
+        setError('Please fill in Language, Country, and Product Name for all localizations.');
         setIsSaving(false);
         return;
       }
@@ -76,17 +79,15 @@ function LocalizationModal({ product, isOpen, onClose, onSave }) {
     localizations.forEach(loc => {
       const original = originalLocalizations.find(ol => ol.lang === loc.lang && ol.country === loc.country);
       
-      // --- FIX: Prepare the payload directly, keeping camelCase. ---
-      // Remove the temporary ID and ensure price is a number.
       const { _tempId, ...locData } = loc;
       const localizationPayload = {
         ...locData,
         price: parseFloat(locData.price) || 0,
       };
 
-      if (loc._tempId) { // It's a new one
+      if (loc._tempId) {
         mutations.push(apiService.addLocalization(sku, localizationPayload));
-      } else if (original && JSON.stringify(loc) !== JSON.stringify(original)) { // It's updated
+      } else if (original && JSON.stringify(loc) !== JSON.stringify(original)) {
         mutations.push(apiService.updateLocalization(sku, localizationPayload));
       }
     });
@@ -119,7 +120,7 @@ function LocalizationModal({ product, isOpen, onClose, onSave }) {
     }
   };
 
-return (
+  return (
     <div className="modal-overlay">
       <div className="modal-content">
         {/* ... (Spinner and modal header are the same) ... */}
@@ -141,11 +142,34 @@ return (
             <tbody>
               {localizations.map((loc, index) => (
                 <tr key={loc._tempId || `${loc.lang}-${loc.country}`}>
-                  <td><input type="text" value={loc.lang} placeholder="en" onChange={e => handleInputChange(index, 'lang', e.target.value)} /></td>
-                  <td><input type="text" value={loc.country} placeholder="us" onChange={e => handleInputChange(index, 'country', e.target.value)} /></td>
-                  <td><input type="text" value={loc.productName} onChange={e => handleInputChange(index, 'productName', e.target.value)} /></td>
-                  
-                  {/* --- FIX IS HERE: The input is now enabled and editable --- */}
+                  <td>
+                    <input
+                      type="text"
+                      value={loc.lang}
+                      placeholder="en"
+                      maxLength="2"
+                      className={submitted && !loc.lang ? 'input-error' : ''}
+                      onChange={e => handleInputChange(index, 'lang', e.target.value)}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      value={loc.country}
+                      placeholder="us"
+                      maxLength="2"
+                      className={submitted && !loc.country ? 'input-error' : ''}
+                      onChange={e => handleInputChange(index, 'country', e.target.value)}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      value={loc.productName}
+                      className={submitted && !loc.productName ? 'input-error' : ''}
+                      onChange={e => handleInputChange(index, 'productName', e.target.value)}
+                    />
+                  </td>
                   <td>
                     <input
                       type="text"
@@ -153,10 +177,27 @@ return (
                       onChange={e => handleInputChange(index, 'categoryText', e.target.value)}
                     />
                   </td>
-                  
-                  <td><textarea value={loc.description} onChange={e => handleInputChange(index, 'description', e.target.value)} /></td>
-                  <td><input type="number" step="0.01" value={loc.price} onChange={e => handleInputChange(index, 'price', e.target.value)} /></td>
-                  <td><input type="text" value={loc.currency} onChange={e => handleInputChange(index, 'currency', e.target.value)} /></td>
+                  <td>
+                    <textarea
+                      value={loc.description}
+                      onChange={e => handleInputChange(index, 'description', e.target.value)}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={loc.price}
+                      onChange={e => handleInputChange(index, 'price', e.target.value)}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      value={loc.currency}
+                      onChange={e => handleInputChange(index, 'currency', e.target.value)}
+                    />
+                  </td>
                   <td>
                     <button className="delete-loc-button" onClick={() => handleDeleteLocalization(index)} disabled={localizations.length <= 1}>
                       Delete

@@ -1,5 +1,3 @@
-/* src/styles.css */
-
 :root {
   --color-background: #121212;
   --color-surface: #1e1e1e;
@@ -158,6 +156,32 @@ td input {
   padding: 8px;
 }
 
+td input.input-error {
+  border: 2px solid var(--color-delete);
+}
+
+/* NEW: Styling for the select dropdown in a table cell */
+td select {
+  font-family: var(--font-family);
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-background);
+  color: var(--color-primary);
+  border-radius: 5px;
+  font-size: 1rem;
+  cursor: pointer;
+  
+  /* Remove default arrow and add custom one */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="white" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 1.2em;
+}
+
 /* Row status indicators */
 tr.is-new { border-left: 3px solid var(--color-accent); }
 tr.is-dirty { border-left: 3px solid orange; }
@@ -166,7 +190,7 @@ tr.is-deleted {
   opacity: 0.5;
   text-decoration: line-through;
 }
-tr.is-deleted input { pointer-events: none; }
+tr.is-deleted input, tr.is-deleted select { pointer-events: none; }
 
 
 .dashboard-footer {

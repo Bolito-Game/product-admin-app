@@ -17,7 +17,6 @@ const createDefaultLocalization = (category = '') => ({
   currency: 'USD',
 });
 
-// --- NEW: Define the allowed enum values for ProductStatus ---
 const PRODUCT_STATUSES = ['ACTIVE', 'INACTIVE', 'DISCONTINUED'];
 
 function Dashboard() {
@@ -28,6 +27,7 @@ function Dashboard() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [selectedRows, setSelectedRows] = useState(new Set());
+  const [validationErrors, setValidationErrors] = useState({}); // To track invalid fields
   const navigate = useNavigate();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -61,8 +61,8 @@ function Dashboard() {
       setOriginalProducts(deepCopy(newProducts));
       setNextToken(newNextToken);
     } catch (err) {
-      setError(`Failed to fetch products: ${err.message}`);
-      if (err.message.includes('401') || err.message.includes('authenticated')) {
+      setError(`Failed to fetch products: ${err.message}`); 
+      if (err.message.includes('401') || err.message.includes('authenticated') || err.message.includes('Failed to fetch')) {
         handleLogout();
       }
     } finally {
@@ -108,7 +108,7 @@ function Dashboard() {
       sku: `NEW_${Date.now()}`,
       category: '',
       imageUrl: '',
-      productStatus: 'ACTIVE', // Default to a valid status
+      productStatus: 'ACTIVE',
       quantityInStock: 0,
       localizations: [createDefaultLocalization()],
       isNew: true,
@@ -136,6 +136,38 @@ function Dashboard() {
     }
     setIsSaving(true);
     setError('');
+    setValidationErrors({}); // Clear previous errors
+
+    // --- Validation Step ---
+    const newValidationErrors = {};
+    let hasValidationError = false;
+    products.forEach(p => {
+      if (!p.isDeleted) {
+        const productErrors = [];
+        const isSkuMissing = (p.isNew && (!p.sku || p.sku.startsWith('NEW_')));
+        const isCategoryMissing = (!p.category || p.category.trim() === '');
+        
+        if (isSkuMissing) {
+          productErrors.push('sku');
+        }
+        if (isCategoryMissing) {
+          productErrors.push('category');
+        }
+
+        if (productErrors.length > 0) {
+          newValidationErrors[p.sku] = productErrors;
+          hasValidationError = true;
+        }
+      }
+    });
+
+    if (hasValidationError) {
+      setValidationErrors(newValidationErrors);
+      setError('SKU and Category are required. Please fill in the highlighted fields.');
+      setIsSaving(false);
+      return;
+    }
+    // --- End Validation Step ---
 
     const mutations = [];
     products.forEach(p => {
@@ -144,10 +176,6 @@ function Dashboard() {
       if (original && p.isDeleted) {
         mutations.push(apiService.deleteProduct(p.sku));
       } else if (p.isNew && !p.isDeleted) {
-        if (!p.sku || p.sku.startsWith('NEW_')) {
-          setError(`Please provide a real SKU for the new product.`);
-          return;
-        }
         const { isNew, isDeleted, ...productData } = p;
         const createInput = {
             ...productData,
@@ -168,8 +196,10 @@ function Dashboard() {
       }
     });
 
-    if (error) { setIsSaving(false); return; }
-    if (mutations.length === 0) { setIsSaving(false); return; }
+    if (mutations.length === 0) {
+      setIsSaving(false);
+      return;
+    }
 
     try {
       const results = await Promise.allSettled(mutations);
@@ -232,6 +262,7 @@ function Dashboard() {
               const isDirty = original && JSON.stringify(product) !== JSON.stringify(original);
               const rowClass = product.isDeleted ? 'is-deleted' : product.isNew ? 'is-new' : isDirty ? 'is-dirty' : '';
               const previewLoc = product.localizations[0] || {};
+              const errors = validationErrors[product.sku] || [];
 
               if (product.isDeleted) return (<tr key={product.sku} className={rowClass}><td colSpan="8">This product will be deleted upon saving.</td></tr>);
               
@@ -240,15 +271,26 @@ function Dashboard() {
                   <td><input type="checkbox" checked={selectedRows.has(product.sku)} onChange={() => handleSelectionChange(product.sku)} /></td>
                   <td>
                     {product.isNew ? 
-                      <input type="text" value={product.sku.startsWith('NEW_') ? '' : product.sku} placeholder="Enter SKU" onChange={(e) => handleInputChange(product.sku, 'sku', e.target.value)} /> :
+                      <input
+                        type="text"
+                        value={product.sku.startsWith('NEW_') ? '' : product.sku}
+                        placeholder="Enter SKU"
+                        onChange={(e) => handleInputChange(product.sku, 'sku', e.target.value)}
+                        className={errors.includes('sku') ? 'input-error' : ''}
+                      /> :
                       product.sku
                     }
                   </td>
                   <td>{previewLoc.productName || '(No Name)'}</td>
-                  <td><input type="text" value={product.category} onChange={(e) => handleInputChange(product.sku, 'category', e.target.value)} /></td>
+                  <td>
+                    <input
+                      type="text"
+                      value={product.category}
+                      onChange={(e) => handleInputChange(product.sku, 'category', e.target.value)}
+                      className={errors.includes('category') ? 'input-error' : ''}
+                    />
+                  </td>
                   <td><input type="number" value={product.quantityInStock} onChange={(e) => handleInputChange(product.sku, 'quantityInStock', e.target.value)} /></td>
-                  
-                  {/* --- FIELD UPDATED HERE --- */}
                   <td>
                     <select
                       value={product.productStatus}
