@@ -1,4 +1,3 @@
-// src/services/apiService.js
 import { authService } from "./authService";
 
 const endpoint = import.meta.env.VITE_GRAPHQL_API_ENDPOINT;
@@ -27,17 +26,16 @@ async function graphqlRequest(query, variables = {}) {
   }
 
   const result = await response.json();
-  
+
   if (result.errors) {
     throw new Error(result.errors[0].message || "GraphQL error occurred");
   }
-  
+
   return result.data;
 }
 
-// Specific API functions based on your schema
 export const apiService = {
-  // Query operations
+  
   getProductBySku: (sku, lang = "en", country = "us") => {
     const query = `
       query GetProductBySku($sku: ID!, $lang: String, $country: String) {
@@ -50,7 +48,6 @@ export const apiService = {
           localizations {
             lang
             country
-            categoryText
             productName
             description
             price
@@ -74,7 +71,6 @@ export const apiService = {
           localizations {
             lang
             country
-            categoryText
             productName
             description
             price
@@ -99,7 +95,6 @@ export const apiService = {
             localizations {
               lang
               country
-              categoryText
               productName
               description
               price
@@ -126,7 +121,6 @@ export const apiService = {
             localizations {
               lang
               country
-              categoryText
               productName
               description
               price
@@ -140,7 +134,54 @@ export const apiService = {
     return graphqlRequest(query, { limit, nextToken });
   },
 
-  // Mutation operations
+  getCategory: (category) => {
+    const query = `
+      query GetCategory($category: ID!) {
+        getCategory(category: $category) {
+          category
+          translations {
+            lang
+            text
+          }
+        }
+      }
+    `;
+    return graphqlRequest(query, { category });
+  },
+
+  getAllCategories: (limit = 20, nextToken = null) => {
+    const query = `
+      query GetAllCategories($limit: Int, $nextToken: String) {
+        getAllCategories(limit: $limit, nextToken: $nextToken) {
+          items {
+            category
+            translations {
+              lang
+              text
+            }
+          }
+          nextToken
+        }
+      }
+    `;
+    return graphqlRequest(query, { limit, nextToken });
+  },
+
+  getAllCategoriesByLanguage: (lang = "en", limit = 20, nextToken = null) => {
+    const query = `
+      query GetAllCategoriesByLanguage($lang: String, $limit: Int, $nextToken: String) {
+        getAllCategoriesByLanguage(lang: $lang, limit: $limit, nextToken: $nextToken) {
+          items {
+            category
+            text
+          }
+          nextToken
+        }
+      }
+    `;
+    return graphqlRequest(query, { lang, limit, nextToken });
+  },
+
   createProduct: (input) => {
     const mutation = `
       mutation CreateProduct($input: CreateProductInput!) {
@@ -153,7 +194,6 @@ export const apiService = {
           localizations {
             lang
             country
-            categoryText
             productName
             description
             price
@@ -177,7 +217,6 @@ export const apiService = {
           localizations {
             lang
             country
-            categoryText
             productName
             description
             price
@@ -201,7 +240,6 @@ export const apiService = {
           localizations {
             lang
             country
-            categoryText
             productName
             description
             price
@@ -213,7 +251,6 @@ export const apiService = {
     return graphqlRequest(mutation, { sku });
   },
 
-  // Localization-specific mutations
   addLocalization: (sku, localization) => {
     const mutation = `
       mutation AddLocalization($sku: ID!, $localization: LocalizationInput!) {
@@ -226,7 +263,6 @@ export const apiService = {
           localizations {
             lang
             country
-            categoryText
             productName
             description
             price
@@ -250,7 +286,6 @@ export const apiService = {
           localizations {
             lang
             country
-            categoryText
             productName
             description
             price
@@ -274,7 +309,6 @@ export const apiService = {
           localizations {
             lang
             country
-            categoryText
             productName
             description
             price
@@ -284,5 +318,61 @@ export const apiService = {
       }
     `;
     return graphqlRequest(mutation, { sku, lang, country });
+  },
+
+  createCategory: (input) => {
+    const mutation = `
+      mutation CreateCategory($input: CreateCategoryInput!) {
+        createCategory(input: $input) {
+          category
+          translations {
+            lang
+            text
+          }
+        }
+      }
+    `;
+    return graphqlRequest(mutation, { input });
+  },
+
+  deleteCategory: (category) => {
+    const mutation = `
+      mutation DeleteCategory($category: ID!) {
+        deleteCategory(category: $category) {
+          category
+        }
+      }
+    `;
+    return graphqlRequest(mutation, { category });
+  },
+
+  upsertCategoryTranslation: (category, translation) => {
+    const mutation = `
+      mutation UpsertCategoryTranslation($category: ID!, $translation: TranslationInput!) {
+        upsertCategoryTranslation(category: $category, translation: $translation) {
+          category
+          translations {
+            lang
+            text
+          }
+        }
+      }
+    `;
+    return graphqlRequest(mutation, { category, translation });
+  },
+
+  removeCategoryTranslation: (category, lang) => {
+    const mutation = `
+      mutation RemoveCategoryTranslation($category: ID!, $lang: String!) {
+        removeCategoryTranslation(category: $category, lang: $lang) {
+          category
+          translations {
+            lang
+            text
+          }
+        }
+      }
+    `;
+    return graphqlRequest(mutation, { category, lang });
   },
 };

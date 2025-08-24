@@ -7,10 +7,9 @@ import LocalizationModal from '../components/LocalizationModal';
 
 const deepCopy = (obj) => JSON.parse(JSON.stringify(obj));
 
-const createDefaultLocalization = (category = '') => ({
+const createDefaultLocalization = (obj) => ({
   lang: 'en',
   country: 'us',
-  categoryText: category,
   productName: '',
   description: '',
   price: 0.0,

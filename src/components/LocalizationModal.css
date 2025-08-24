@@ -55,14 +55,13 @@
 }
 
 /* Defining column widths */
-.modal-body th:nth-child(1) { width: 8%; }  /* Language */
-.modal-body th:nth-child(2) { width: 8%; }  /* Country */
-.modal-body th:nth-child(3) { width: 15%; } /* Product Name */
-.modal-body th:nth-child(4) { width: 15%; } /* Category Text */
-.modal-body th:nth-child(5) { width: 30%; } /* Description (Wider) */
-.modal-body th:nth-child(6) { width: 7%; }  /* Price */
-.modal-body th:nth-child(7) { width: 7%; }  /* Currency */
-.modal-body th:nth-child(8) { width: 10%; } /* Action */
+.modal-body th:nth-child(1) { width: 9%; }  /* Language */
+.modal-body th:nth-child(2) { width: 9%; }  /* Country */
+.modal-body th:nth-child(3) { width: 17%; } /* Product Name */
+.modal-body th:nth-child(4) { width: 35%; } /* Description (Wider) */
+.modal-body th:nth-child(5) { width: 10%; } /* Price */
+.modal-body th:nth-child(6) { width: 10%; } /* Currency */
+.modal-body th:nth-child(7) { width: 10%; } /* Action */
 
 
 .modal-body th, .modal-body td {

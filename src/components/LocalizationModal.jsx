@@ -5,10 +5,9 @@ import './LocalizationModal.css';
 
 const deepCopy = (obj) => JSON.parse(JSON.stringify(obj));
 
-const createNewLocalization = (categoryText) => ({
+const createNewLocalization = (obj) => ({
   lang: '',
   country: '',
-  categoryText: categoryText,
   productName: '',
   description: '',
   price: 0.0,
@@ -132,7 +131,6 @@ function LocalizationModal({ product, isOpen, onClose, onSave }) {
                 <th>Language</th>
                 <th>Country</th>
                 <th>Product Name</th>
-                <th>Category Text</th>
                 <th>Description</th>
                 <th>Price</th>
                 <th>Currency</th>
@@ -168,13 +166,6 @@ function LocalizationModal({ product, isOpen, onClose, onSave }) {
                       value={loc.productName}
                       className={submitted && !loc.productName ? 'input-error' : ''}
                       onChange={e => handleInputChange(index, 'productName', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={loc.categoryText}
-                      onChange={e => handleInputChange(index, 'categoryText', e.target.value)}
                     />
                   </td>
                   <td>
