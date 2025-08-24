@@ -4,10 +4,11 @@ import { apiService } from '../services/apiService';
 import { authService } from '../services/authService';
 import Spinner from '../components/Spinner';
 import LocalizationModal from '../components/LocalizationModal';
+import CategoryTranslationsModal from '../components/CategoryTranslationsModal';
 
 const deepCopy = (obj) => JSON.parse(JSON.stringify(obj));
 
-const createDefaultLocalization = (obj) => ({
+const createDefaultLocalization = () => ({
   lang: 'en',
   country: 'us',
   productName: '',
@@ -18,200 +19,170 @@ const createDefaultLocalization = (obj) => ({
 
 const PRODUCT_STATUSES = ['ACTIVE', 'INACTIVE', 'DISCONTINUED'];
 
+// Styles for layout and spacing
+const styles = {
+  sectionBuffer: {
+    marginTop: '4rem', // Adds space between Products and Categories sections
+  },
+  actionButton: {
+    marginLeft: '10px', // Adds space between Translations and Delete buttons
+  }
+};
+
 function Dashboard() {
+  // Product State
   const [products, setProducts] = useState([]);
   const [originalProducts, setOriginalProducts] = useState([]);
-  const [nextToken, setNextToken] = useState(null);
+  const [productNextToken, setProductNextToken] = useState(null);
+  const [selectedRows, setSelectedRows] = useState(new Set());
+  
+  // Category State
+  const [categories, setCategories] = useState([]);
+  const [originalCategories, setOriginalCategories] = useState([]);
+  const [newCategoryName, setNewCategoryName] = useState('');
+
+  // General Component State
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
-  const [selectedRows, setSelectedRows] = useState(new Set());
-  const [validationErrors, setValidationErrors] = useState({}); // To track invalid fields
+  const [validationErrors, setValidationErrors] = useState({});
   const navigate = useNavigate();
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Modal State
+  const [isLocalizationModalOpen, setIsLocalizationModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [isTranslationsModalOpen, setIsTranslationsModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+
 
   const hasChanges = useMemo(() => {
-    return JSON.stringify(products) !== JSON.stringify(originalProducts);
-  }, [products, originalProducts]);
+    const productsChanged = JSON.stringify(products) !== JSON.stringify(originalProducts);
+    const categoriesChanged = JSON.stringify(categories) !== JSON.stringify(originalCategories);
+    return productsChanged || categoriesChanged;
+  }, [products, originalProducts, categories, originalCategories]);
 
-  const fetchProducts = useCallback(async (token = null) => {
+  const validCategories = useMemo(() => categories.filter(c => !c.isDeleted), [categories]);
+  const validCategoryNames = useMemo(() => new Set(validCategories.map(c => c.category)), [validCategories]);
+
+  const handleLogout = useCallback(() => {
+    authService.logout();
+    navigate('/login');
+  }, [navigate]);
+
+  const fetchData = useCallback(async (productToken = null) => {
     setLoading(true);
     setError('');
     try {
-      const responseData = await apiService.getAllProducts(50, token);
+      const [productsResponse, categoriesResponse] = await Promise.all([
+        apiService.getAllProducts(50, productToken),
+        !productToken ? apiService.getAllCategories(200) : Promise.resolve(null)
+      ]);
 
-      if (!responseData || !responseData.getAllProducts) {
-        throw new Error("Invalid data structure received from API.");
-      }
-      
-      const { items, nextToken: newNextToken } = responseData.getAllProducts;
-
-      const fetchedProducts = items.map(p => ({
-        ...p,
-        localizations: p.localizations?.length > 0 ? p.localizations : [createDefaultLocalization(p.category)],
-        isNew: false,
-        isDeleted: false,
-      }));
-      
-      const newProducts = token ? [...products, ...fetchedProducts] : fetchedProducts;
+      if (!productsResponse || !productsResponse.getAllProducts) throw new Error("Invalid product data structure.");
+      const { items: productItems, nextToken: newProductNextToken } = productsResponse.getAllProducts;
+      const fetchedProducts = productItems.map(p => ({ ...p, localizations: p.localizations?.length > 0 ? p.localizations : [createDefaultLocalization()], isNew: false, isDeleted: false }));
+      const newProducts = productToken ? [...products, ...fetchedProducts] : fetchedProducts;
       setProducts(newProducts);
       setOriginalProducts(deepCopy(newProducts));
-      setNextToken(newNextToken);
-    } catch (err) {
-      setError(`Failed to fetch products: ${err.message}`); 
-      if (err.message.includes('401') || err.message.includes('authenticated') || err.message.includes('Failed to fetch')) {
-        handleLogout();
+      setProductNextToken(newProductNextToken);
+
+      if (categoriesResponse?.getAllCategories) {
+        const fetchedCategories = categoriesResponse.getAllCategories.items.map(c => ({ ...c, isNew: false, isDeleted: false }));
+        setCategories(fetchedCategories);
+        setOriginalCategories(deepCopy(fetchedCategories));
       }
+    } catch (err) {
+      setError(`Failed to fetch data: ${err.message}`);
+      if (err.message.includes('401') || err.message.includes('authenticated')) handleLogout();
     } finally {
       setLoading(false);
     }
-  }, [navigate]);
+  }, [handleLogout, products]);
 
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+  useEffect(() => { fetchData() }, []);
 
-  const handleOpenLocalizationModal = (product) => {
-    setEditingProduct(product);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseLocalizationModal = () => {
-    setIsModalOpen(false);
-    setEditingProduct(null);
-  };
-
-  const handleLocalizationsUpdate = (updatedProduct) => {
-    const updatedProducts = products.map(p => p.sku === updatedProduct.sku ? updatedProduct : p);
-    setProducts(updatedProducts);
-    setOriginalProducts(deepCopy(updatedProducts));
-    handleCloseLocalizationModal();
-  };
-
-  const handleLogout = () => {
-    authService.logout();
-    navigate('/login');
-  };
-
-  const handleSelectionChange = (sku) => {
-    const newSelection = new Set(selectedRows);
-    if (newSelection.has(sku)) newSelection.delete(sku);
-    else newSelection.add(sku);
-    setSelectedRows(newSelection);
-  };
-
-  const handleAddRow = () => {
-    const newProduct = {
-      sku: `NEW_${Date.now()}`,
-      category: '',
-      imageUrl: '',
-      productStatus: 'ACTIVE',
-      quantityInStock: 0,
-      localizations: [createDefaultLocalization()],
-      isNew: true,
-      isDeleted: false,
-    };
-    setProducts([newProduct, ...products]);
-  };
-
-  const handleDeleteRows = () => {
-    if (selectedRows.size === 0) return;
-    setProducts(products.map(p => selectedRows.has(p.sku) ? { ...p, isDeleted: true } : p));
-    setSelectedRows(new Set());
-  };
+  // --- Handlers ---
+  const handleAddRow = () => setProducts([{ sku: `NEW_${Date.now()}`, category: '', imageUrl: '', productStatus: 'ACTIVE', quantityInStock: 0, localizations: [createDefaultLocalization()], isNew: true, isDeleted: false }, ...products]);
+  const handleDeleteRows = () => { setProducts(products.map(p => selectedRows.has(p.sku) ? { ...p, isDeleted: true } : p)); setSelectedRows(new Set()); };
+  const handleInputChange = (sku, field, value) => setProducts(products.map(p => (p.sku !== sku ? p : { ...p, [field]: value })));
+  const handleSelectionChange = (sku) => { const newSelection = new Set(selectedRows); if (newSelection.has(sku)) newSelection.delete(sku); else newSelection.add(sku); setSelectedRows(newSelection); };
   
-  const handleInputChange = (sku, field, value) => {
-    setProducts(products.map(p => {
-      if (p.sku !== sku) return p;
-      return { ...p, [field]: value };
-    }));
+  const handleAddCategory = () => {
+    const trimmedName = newCategoryName.trim();
+    if (!trimmedName) return alert('Category name cannot be empty.');
+    if (categories.some(c => c.category.toLowerCase() === trimmedName.toLowerCase() && !c.isDeleted)) return alert('Category already exists.');
+    setCategories([{ category: trimmedName, translations: [], isNew: true, isDeleted: false }, ...categories]);
+    setNewCategoryName('');
   };
+  const handleDeleteCategory = (name) => { if (window.confirm(`Delete "${name}"? Products using it will need updates.`)) setCategories(categories.map(c => c.category === name ? { ...c, isDeleted: true } : c)); };
+
+  const handleOpenLocalizationModal = (product) => { setEditingProduct(product); setIsLocalizationModalOpen(true); };
+  const handleCloseLocalizationModal = () => setIsLocalizationModalOpen(false);
+  const handleLocalizationsUpdate = (updatedProduct) => { setProducts(products.map(p => p.sku === updatedProduct.sku ? updatedProduct : p)); handleCloseLocalizationModal(); };
+  
+  const handleOpenTranslationsModal = (category) => { setEditingCategory(category); setIsTranslationsModalOpen(true); };
+  const handleCloseTranslationsModal = () => setIsTranslationsModalOpen(false);
+  const handleSaveTranslations = (updatedCategory) => { setCategories(categories.map(c => c.category === updatedCategory.category ? updatedCategory : c)); handleCloseTranslationsModal(); };
   
   const handleSaveChanges = async () => {
-    if (!window.confirm(`You have pending changes. Are you sure you want to save them?`)) {
-      return;
-    }
+    if (!window.confirm(`Save pending changes to products and categories?`)) return;
     setIsSaving(true);
     setError('');
-    setValidationErrors({}); // Clear previous errors
-
-    // --- Validation Step ---
-    const newValidationErrors = {};
-    let hasValidationError = false;
-    products.forEach(p => {
-      if (!p.isDeleted) {
-        const productErrors = [];
-        const isSkuMissing = (p.isNew && (!p.sku || p.sku.startsWith('NEW_')));
-        const isCategoryMissing = (!p.category || p.category.trim() === '');
-        
-        if (isSkuMissing) {
-          productErrors.push('sku');
-        }
-        if (isCategoryMissing) {
-          productErrors.push('category');
-        }
-
-        if (productErrors.length > 0) {
-          newValidationErrors[p.sku] = productErrors;
-          hasValidationError = true;
-        }
-      }
-    });
-
-    if (hasValidationError) {
-      setValidationErrors(newValidationErrors);
-      setError('SKU and Category are required. Please fill in the highlighted fields.');
+    
+    let hasInvalidCategoryError = products.some(p => !p.isDeleted && p.category && !validCategoryNames.has(p.category));
+    if (hasInvalidCategoryError) {
+      setError('A product is assigned to a deleted category. Please select a valid category.');
       setIsSaving(false);
       return;
     }
-    // --- End Validation Step ---
 
     const mutations = [];
-    products.forEach(p => {
-      const original = originalProducts.find(op => op.sku === p.sku);
 
-      if (original && p.isDeleted) {
-        mutations.push(apiService.deleteProduct(p.sku));
-      } else if (p.isNew && !p.isDeleted) {
-        const { isNew, isDeleted, ...productData } = p;
-        const createInput = {
-            ...productData,
-            quantityInStock: parseInt(productData.quantityInStock, 10),
-            localizations: productData.localizations.map(loc => ({...loc, price: parseFloat(loc.price)}))
-        };
-        mutations.push(apiService.createProduct(createInput));
-      } else if (original && !p.isNew && !p.isDeleted) {
-        const updateInput = { sku: p.sku };
-        if (p.category !== original.category) updateInput.category = p.category;
-        if (p.imageUrl !== original.imageUrl) updateInput.imageUrl = p.imageUrl;
-        if (p.productStatus !== original.productStatus) updateInput.productStatus = p.productStatus;
-        if (parseInt(p.quantityInStock, 10) !== original.quantityInStock) updateInput.quantityInStock = parseInt(p.quantityInStock, 10);
-        
-        if (Object.keys(updateInput).length > 1) {
-          mutations.push(apiService.updateProduct(updateInput));
-        }
+    // Category Mutations (including translations)
+    categories.forEach(c => {
+      const original = originalCategories.find(oc => oc.category === c.category);
+      if (c.isNew && !c.isDeleted) {
+        mutations.push(apiService.createCategory({ category: c.category, translations: [] }));
+      } else if (original && !original.isNew && c.isDeleted) {
+        mutations.push(apiService.deleteCategory(c.category));
+      } else if (original && !c.isDeleted) {
+        const originalTranslations = new Map(original.translations.map(t => [t.lang, t.text]));
+        const currentTranslations = new Map(c.translations.map(t => [t.lang, t.text]));
+        currentTranslations.forEach((text, lang) => {
+            if (!originalTranslations.has(lang) || originalTranslations.get(lang) !== text) {
+                mutations.push(apiService.upsertCategoryTranslation(c.category, { lang, text }));
+            }
+        });
+        originalTranslations.forEach((_, lang) => {
+            if (!currentTranslations.has(lang)) {
+                mutations.push(apiService.removeCategoryTranslation(c.category, lang));
+            }
+        });
       }
     });
 
-    if (mutations.length === 0) {
-      setIsSaving(false);
-      return;
-    }
+    // Product Mutations
+    products.forEach(p => {
+      const original = originalProducts.find(op => op.sku === p.sku);
+      if (original && !original.isNew && p.isDeleted) mutations.push(apiService.deleteProduct(p.sku));
+      else if (p.isNew && !p.isDeleted) {
+        const { isNew, isDeleted, ...data } = p;
+        mutations.push(apiService.createProduct({ ...data, quantityInStock: parseInt(data.quantityInStock, 10) }));
+      } else if (original && !p.isNew && !p.isDeleted && JSON.stringify(p) !== JSON.stringify(original)) {
+        const { sku, category, imageUrl, productStatus, quantityInStock } = p;
+        mutations.push(apiService.updateProduct({ sku, category, imageUrl, productStatus, quantityInStock: parseInt(quantityInStock, 10) }));
+      }
+    });
+
+    if (mutations.length === 0) { setIsSaving(false); return; }
 
     try {
-      const results = await Promise.allSettled(mutations);
-      const failures = results.filter(r => r.status === 'rejected');
-      if (failures.length > 0) {
-        console.error("Failed operations:", failures);
-        throw new Error(`${failures.length} operations failed.`);
-      }
-
-      alert('Top-level changes saved successfully!');
-      fetchProducts();
+      await Promise.all(mutations);
+      alert('All changes saved successfully!');
+      await fetchData();
     } catch (err) {
       setError(`Save failed: ${err.message}`);
+      await fetchData();
     } finally {
       setIsSaving(false);
     }
@@ -220,111 +191,106 @@ function Dashboard() {
   return (
     <div className="dashboard-container">
       <Spinner show={loading || isSaving} />
-      <LocalizationModal 
-        isOpen={isModalOpen}
-        product={editingProduct}
-        onClose={handleCloseLocalizationModal}
-        onSave={handleLocalizationsUpdate}
-      />
+      <LocalizationModal isOpen={isLocalizationModalOpen} product={editingProduct} onClose={handleCloseLocalizationModal} onSave={handleLocalizationsUpdate} />
+      <CategoryTranslationsModal isOpen={isTranslationsModalOpen} category={editingCategory} onClose={handleCloseTranslationsModal} onSave={handleSaveTranslations} />
+      
       <header className="dashboard-header">
-        <h1>Product Dashboard</h1>
+        <h1>Product & Category Dashboard</h1>
         <button onClick={handleLogout}>Logout</button>
       </header>
       
       <div className="dashboard-controls">
         <button onClick={handleAddRow}>Add Product</button>
-        <button onClick={handleDeleteRows} disabled={selectedRows.size === 0}>Delete Selected</button>
+        <button onClick={handleDeleteRows} disabled={selectedRows.size === 0}>Delete Selected Products</button>
         <button onClick={handleSaveChanges} disabled={!hasChanges || isSaving} style={{backgroundColor: hasChanges ? 'var(--color-accent)' : ''}}>
-          {isSaving ? 'Saving...' : 'Save Changes'}
+          {isSaving ? 'Saving...' : 'Save All Changes'}
         </button>
       </div>
       
       {error && <p className="error-message">{error}</p>}
 
-      <div className="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th></th>
-              <th>SKU</th>
-              <th>Default Name</th>
-              <th>Category</th>
-              <th>Stock</th>
-              <th>Status</th>
-              <th>Image URL</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.map(product => {
-              const original = originalProducts.find(op => op.sku === product.sku);
-              const isDirty = original && JSON.stringify(product) !== JSON.stringify(original);
-              const rowClass = product.isDeleted ? 'is-deleted' : product.isNew ? 'is-new' : isDirty ? 'is-dirty' : '';
-              const previewLoc = product.localizations[0] || {};
-              const errors = validationErrors[product.sku] || [];
+      {/* Products Section */}
+      <div>
+        <h2>Products</h2>
+        <div className="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th></th><th>SKU</th><th>Default Name</th><th>Category</th><th>Stock</th><th>Status</th><th>Image URL</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {products.map(product => {
+                const isDirty = originalProducts.find(op => op.sku === product.sku) && JSON.stringify(product) !== JSON.stringify(originalProducts.find(op => op.sku === product.sku));
+                const rowClass = product.isDeleted ? 'is-deleted' : product.isNew ? 'is-new' : isDirty ? 'is-dirty' : '';
+                const isCategoryInvalid = product.category && !validCategoryNames.has(product.category);
 
-              if (product.isDeleted) return (<tr key={product.sku} className={rowClass}><td colSpan="8">This product will be deleted upon saving.</td></tr>);
-              
-              return (
-                <tr key={product.sku} className={rowClass}>
-                  <td><input type="checkbox" checked={selectedRows.has(product.sku)} onChange={() => handleSelectionChange(product.sku)} /></td>
-                  <td>
-                    {product.isNew ? 
-                      <input
-                        type="text"
-                        value={product.sku.startsWith('NEW_') ? '' : product.sku}
-                        placeholder="Enter SKU"
-                        onChange={(e) => handleInputChange(product.sku, 'sku', e.target.value)}
-                        className={errors.includes('sku') ? 'input-error' : ''}
-                      /> :
-                      product.sku
-                    }
-                  </td>
-                  <td>{previewLoc.productName || '(No Name)'}</td>
-                  <td>
-                    <input
-                      type="text"
-                      value={product.category}
-                      onChange={(e) => handleInputChange(product.sku, 'category', e.target.value)}
-                      className={errors.includes('category') ? 'input-error' : ''}
-                    />
-                  </td>
-                  <td><input type="number" value={product.quantityInStock} onChange={(e) => handleInputChange(product.sku, 'quantityInStock', e.target.value)} /></td>
-                  <td>
-                    <select
-                      value={product.productStatus}
-                      onChange={(e) => handleInputChange(product.sku, 'productStatus', e.target.value)}
-                    >
-                      {PRODUCT_STATUSES.map(status => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-
-                  <td><input type="text" value={product.imageUrl} placeholder="http://..." onChange={(e) => handleInputChange(product.sku, 'imageUrl', e.target.value)} /></td>
-                  <td>
-                    <button 
-                      onClick={() => handleOpenLocalizationModal(product)} 
-                      disabled={product.isNew}
-                      title={product.isNew ? "Save the new product before managing localizations" : "Manage localizations"}
-                    >
-                      Manage Localizations ({product.localizations.length})
-                    </button>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                if (product.isDeleted) return (<tr key={product.sku} className={rowClass}><td colSpan="8">Product will be deleted upon saving.</td></tr>);
+                
+                return (
+                  <tr key={product.sku} className={rowClass}>
+                    <td><input type="checkbox" checked={selectedRows.has(product.sku)} onChange={() => handleSelectionChange(product.sku)} /></td>
+                    <td>{product.isNew ? <input type="text" value={product.sku.startsWith('NEW_') ? '' : product.sku} onChange={(e) => handleInputChange(product.sku, 'sku', e.target.value)} /> : product.sku}</td>
+                    <td>{product.localizations[0]?.productName || '(No Name)'}</td>
+                    <td style={isCategoryInvalid ? { outline: '2px solid red', outlineOffset: '-2px' } : {}}>
+                      <select value={product.category} onChange={(e) => handleInputChange(product.sku, 'category', e.target.value)}>
+                        <option value="">-- Select --</option>
+                        {isCategoryInvalid && <option value={product.category} style={{ color: 'red' }}>{product.category} (Deleted)</option>}
+                        {validCategories.map(cat => <option key={cat.category} value={cat.category}>{cat.category}</option>)}
+                      </select>
+                    </td>
+                    <td><input type="number" value={product.quantityInStock} onChange={(e) => handleInputChange(product.sku, 'quantityInStock', e.target.value)} /></td>
+                    <td>
+                      <select value={product.productStatus} onChange={(e) => handleInputChange(product.sku, 'productStatus', e.target.value)}>
+                        {PRODUCT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </td>
+                    <td><input type="text" value={product.imageUrl} onChange={(e) => handleInputChange(product.sku, 'imageUrl', e.target.value)} /></td>
+                    <td><button onClick={() => handleOpenLocalizationModal(product)} disabled={product.isNew}>Localizations ({product.localizations.length})</button></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <div className="dashboard-footer">
+            <button onClick={() => fetchData(productNextToken)} disabled={!productNextToken || loading}>{loading ? 'Loading...' : 'Load More Products'}</button>
+          </div>
+        </div>
       </div>
       
-      <footer className="dashboard-footer">
-        <button onClick={() => fetchProducts(nextToken)} disabled={!nextToken || loading}>
-          {loading ? 'Loading...' : 'Load More'}
-        </button>
-      </footer>
+      {/* Categories Section */}
+      <div style={styles.sectionBuffer}>
+        <h2>Manage Categories</h2>
+        <div className="category-manager">
+          <div className="category-controls">
+            <input type="text" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="New category name" onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()} />
+            <button onClick={handleAddCategory}>Add Category</button>
+          </div>
+          <div className="table-wrapper">
+            <table>
+              <thead><tr><th>Category</th><th>Actions</th></tr></thead>
+              <tbody>
+                {categories.filter(c => !c.isDeleted).map(cat => (
+                  <tr key={cat.category} className={cat.isNew ? 'is-new' : ''}>
+                    <td>{cat.category}</td>
+                    <td className="actions-cell">
+                      <button onClick={() => handleOpenTranslationsModal(cat)}>Translations</button>
+                      <button 
+                        onClick={() => handleDeleteCategory(cat.category)} 
+                        className="delete-button"
+                        style={styles.actionButton}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {validCategories.length === 0 && (<tr><td colSpan="2">No categories found.</td></tr>)}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

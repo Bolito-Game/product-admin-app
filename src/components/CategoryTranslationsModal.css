@@ -1,0 +1,101 @@
+/* src/components/CategoryTranslationsModal.css */
+
+/* Using a more specific class for the overlay to avoid conflicts */
+.category-translations-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* Using a more specific class for the content to avoid conflicts */
+.category-translations-modal-content {
+  background: white;
+  padding: 25px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 600px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.category-translations-modal-content h2 {
+  margin-top: 0;
+}
+
+.category-translations-modal-content .translations-list {
+  margin-top: 20px;
+  max-height: 250px;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.category-translations-modal-content .translation-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.category-translations-modal-content .translation-item .lang-code {
+  font-weight: bold;
+  min-width: 40px;
+  text-transform: uppercase;
+  /* --- FIX: Explicitly set a visible color for the language code --- */
+  color: #34495e; 
+}
+
+.category-translations-modal-content .translation-item input {
+  flex-grow: 1;
+}
+
+.category-translations-modal-content .add-translation-form {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.category-translations-modal-content .add-translation-form h3 {
+  width: 100%;
+  margin: 0 0 10px;
+}
+
+.category-translations-modal-content .modal-actions {
+  margin-top: 25px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.category-translations-modal-content .delete-button-small {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.category-translations-modal-content .delete-button-small:hover {
+    background-color: #c0392b;
+}
+
+.category-translations-modal-content .secondary-button {
+  background-color: #bdc3c7;
+}
+
+.category-translations-modal-content .secondary-button:hover {
+  background-color: #95a5a6;
+}
