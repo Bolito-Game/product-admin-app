@@ -19,16 +19,6 @@ const createDefaultLocalization = () => ({
 
 const PRODUCT_STATUSES = ['ACTIVE', 'INACTIVE', 'DISCONTINUED'];
 
-// Styles for layout and spacing
-const styles = {
-  sectionBuffer: {
-    marginTop: '4rem', // Adds space between Products and Categories sections
-  },
-  actionButton: {
-    marginLeft: '10px', // Adds space between Translations and Delete buttons
-  }
-};
-
 function Dashboard() {
   // Product State
   const [products, setProducts] = useState([]);
@@ -92,7 +82,7 @@ function Dashboard() {
         setOriginalCategories(deepCopy(fetchedCategories));
       }
     } catch (err) {
-      setError(`Failed to fetch data: ${err.message}`);
+      setError(`An error is preventing access to your Product information: ${err.message}`);
       if (err.message.includes('401') || err.message.includes('authenticated')) handleLogout();
     } finally {
       setLoading(false);
@@ -114,17 +104,32 @@ function Dashboard() {
     setCategories([{ category: trimmedName, translations: [], isNew: true, isDeleted: false }, ...categories]);
     setNewCategoryName('');
   };
-  const handleDeleteCategory = (name) => { if (window.confirm(`Delete "${name}"? Products using it will need updates.`)) setCategories(categories.map(c => c.category === name ? { ...c, isDeleted: true } : c)); };
+  const handleDeleteCategory = (name) => { if (window.confirm(`Delete category: "${name}"? Products using this category will need updates.`)) setCategories(categories.map(c => c.category === name ? { ...c, isDeleted: true } : c)); };
 
   const handleOpenLocalizationModal = (product) => { setEditingProduct(product); setIsLocalizationModalOpen(true); };
   const handleCloseLocalizationModal = () => setIsLocalizationModalOpen(false);
   const handleLocalizationsUpdate = (updatedProduct) => { setProducts(products.map(p => p.sku === updatedProduct.sku ? updatedProduct : p)); handleCloseLocalizationModal(); };
   
   const handleOpenTranslationsModal = (category) => { setEditingCategory(category); setIsTranslationsModalOpen(true); };
-  const handleCloseTranslationsModal = () => setIsTranslationsModalOpen(false);
-  const handleSaveTranslations = (updatedCategory) => { setCategories(categories.map(c => c.category === updatedCategory.category ? updatedCategory : c)); handleCloseTranslationsModal(); };
+  const handleCloseTranslationsModal = () => { setIsTranslationsModalOpen(false); setEditingCategory(null); };
+  
+  const handleSaveTranslations = (updatedCategory) => {
+    const newCategories = categories.map(c => 
+      c.category === updatedCategory.category ? updatedCategory : c
+    );
+    setCategories(newCategories);
+    
+    const newOriginalCategories = originalCategories.map(c => 
+      c.category === updatedCategory.category ? updatedCategory : c
+    );
+    setOriginalCategories(newOriginalCategories);
+    
+    handleCloseTranslationsModal();
+  };
   
   const handleSaveChanges = async () => {
+    // This function's logic remains the same, but it will now only be enabled for
+    // changes made directly on the dashboard, not from the translations modal.
     if (!window.confirm(`Save pending changes to products and categories?`)) return;
     setIsSaving(true);
     setError('');
@@ -138,27 +143,18 @@ function Dashboard() {
 
     const mutations = [];
 
-    // Category Mutations (including translations)
+    // Category Mutations
     categories.forEach(c => {
       const original = originalCategories.find(oc => oc.category === c.category);
       if (c.isNew && !c.isDeleted) {
+        // NOTE: This assumes new categories start with no translations.
+        // The modal handles translations for existing categories.
         mutations.push(apiService.createCategory({ category: c.category, translations: [] }));
       } else if (original && !original.isNew && c.isDeleted) {
         mutations.push(apiService.deleteCategory(c.category));
-      } else if (original && !c.isDeleted) {
-        const originalTranslations = new Map(original.translations.map(t => [t.lang, t.text]));
-        const currentTranslations = new Map(c.translations.map(t => [t.lang, t.text]));
-        currentTranslations.forEach((text, lang) => {
-            if (!originalTranslations.has(lang) || originalTranslations.get(lang) !== text) {
-                mutations.push(apiService.upsertCategoryTranslation(c.category, { lang, text }));
-            }
-        });
-        originalTranslations.forEach((_, lang) => {
-            if (!currentTranslations.has(lang)) {
-                mutations.push(apiService.removeCategoryTranslation(c.category, lang));
-            }
-        });
-      }
+      } 
+      // NOTE: Translation updates are now handled by the modal, so that logic is removed from here
+      // to avoid duplication and conflicts.
     });
 
     // Product Mutations
@@ -179,10 +175,10 @@ function Dashboard() {
     try {
       await Promise.all(mutations);
       alert('All changes saved successfully!');
-      await fetchData();
+      await fetchData(); // Refetch all data to ensure consistency
     } catch (err) {
       setError(`Save failed: ${err.message}`);
-      await fetchData();
+      await fetchData(); // Refetch to revert to a known good state
     } finally {
       setIsSaving(false);
     }
@@ -195,7 +191,7 @@ function Dashboard() {
       <CategoryTranslationsModal isOpen={isTranslationsModalOpen} category={editingCategory} onClose={handleCloseTranslationsModal} onSave={handleSaveTranslations} />
       
       <header className="dashboard-header">
-        <h1>Product & Category Dashboard</h1>
+        <h1>Product Dashboard</h1>
         <button onClick={handleLogout}>Logout</button>
       </header>
       
@@ -259,8 +255,8 @@ function Dashboard() {
       </div>
       
       {/* Categories Section */}
-      <div style={styles.sectionBuffer}>
-        <h2>Manage Categories</h2>
+      <div className='section-buffer'>
+        <h2>Product Categories</h2>
         <div className="category-manager">
           <div className="category-controls">
             <input type="text" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="New category name" onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()} />
@@ -270,21 +266,26 @@ function Dashboard() {
             <table>
               <thead><tr><th>Category</th><th>Actions</th></tr></thead>
               <tbody>
-                {categories.filter(c => !c.isDeleted).map(cat => (
-                  <tr key={cat.category} className={cat.isNew ? 'is-new' : ''}>
-                    <td>{cat.category}</td>
-                    <td className="actions-cell">
-                      <button onClick={() => handleOpenTranslationsModal(cat)}>Translations</button>
-                      <button 
-                        onClick={() => handleDeleteCategory(cat.category)} 
-                        className="delete-button"
-                        style={styles.actionButton}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {categories.filter(c => !c.isDeleted).map(cat => {
+                    const originalCat = originalCategories.find(oc => oc.category === cat.category);
+                    const isDirty = JSON.stringify(cat) !== JSON.stringify(originalCat);
+                    const rowClass = cat.isNew ? 'is-new' : isDirty ? 'is-dirty' : '';
+
+                    return (
+                      <tr key={cat.category} className={rowClass}>
+                        <td>{cat.category}</td>
+                        <td className="actions-cell">
+                          <button onClick={() => handleOpenTranslationsModal(cat)}>Translations ({cat.translations?.length || 0})</button>
+                          <button 
+                            onClick={() => handleDeleteCategory(cat.category)} 
+                            className="delete-button"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                })}
                 {validCategories.length === 0 && (<tr><td colSpan="2">No categories found.</td></tr>)}
               </tbody>
             </table>

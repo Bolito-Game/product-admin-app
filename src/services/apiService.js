@@ -346,10 +346,10 @@ export const apiService = {
     return graphqlRequest(mutation, { category });
   },
 
-  upsertCategoryTranslation: (category, translation) => {
+  upsertCategoryTranslation: (input) => {
     const mutation = `
-      mutation UpsertCategoryTranslation($category: ID!, $translation: TranslationInput!) {
-        upsertCategoryTranslation(category: $category, translation: $translation) {
+      mutation UpsertCategoryTranslation($input: UpsertCategoryTranslationInput!) {
+        upsertCategoryTranslation(input: $input) {
           category
           translations {
             lang
@@ -358,7 +358,7 @@ export const apiService = {
         }
       }
     `;
-    return graphqlRequest(mutation, { category, translation });
+    return graphqlRequest(mutation, { input });
   },
 
   removeCategoryTranslation: (category, lang) => {

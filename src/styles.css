@@ -122,11 +122,29 @@ input[type="text"], input[type="number"], input[type="password"], input[type="em
   flex-wrap: wrap;
 }
 
+.section-buffer {
+  margin-top: 4rem;
+}
+
+/* MODIFICATION: Added styles for the category management section */
+.category-manager .category-controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 1rem;
+  margin-top: 1rem;
+}
+
+.category-manager .category-controls input {
+  /* Allow the input to grow and fill the available space */
+  flex-grow: 1;
+}
+
 .table-wrapper {
   flex-grow: 1;
   overflow: auto; /* Key for responsiveness */
   border: 1px solid var(--color-border);
   border-radius: 5px;
+  margin-top: 1rem;
 }
 
 table {
@@ -148,6 +166,10 @@ th, td {
   border-bottom: 1px solid var(--color-border);
 }
 
+.actions-cell button + button {
+  margin-left: 10px;
+}
+
 tbody tr:hover {
   background-color: #2a2a2a;
 }
@@ -160,7 +182,6 @@ td input.input-error {
   border: 2px solid var(--color-delete);
 }
 
-/* NEW: Styling for the select dropdown in a table cell */
 td select {
   font-family: var(--font-family);
   width: 100%;
@@ -172,7 +193,6 @@ td select {
   font-size: 1rem;
   cursor: pointer;
   
-  /* Remove default arrow and add custom one */
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
@@ -196,6 +216,7 @@ tr.is-deleted input, tr.is-deleted select { pointer-events: none; }
 .dashboard-footer {
   padding-top: 1rem;
   text-align: center;
+  padding-bottom: 1rem;
 }
 
 /* --- Spinner --- */
