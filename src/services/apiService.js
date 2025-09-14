@@ -2,10 +2,21 @@ import { authService } from "./authService";
 
 const endpoint = import.meta.env.VITE_GRAPHQL_API_ENDPOINT;
 
-// A generic function to make GraphQL requests
-async function graphqlRequest(query, variables = {}) {
-  const token = authService.getCurrentUserToken();
+/**
+ * A generic function to make GraphQL requests with automatic token refresh.
+ * @param {string} query - The GraphQL query string.
+ * @param {object} variables - The variables for the query.
+ * @param {boolean} isRetry - Internal flag to prevent infinite retry loops.
+ * @returns {Promise<object>} A promise that resolves with the GraphQL data.
+ */
+async function graphqlRequest(query, variables = {}, isRetry = false) {
+  // Use the new async method to ensure we have a valid token
+  const token = await authService.getCurrentUserToken();
+
   if (!token) {
+    // If we still don't have a token, the refresh failed or the user is logged out.
+    // You might want to redirect to the login page here.
+    window.location.href = '/login'; 
     throw new Error("User is not authenticated.");
   }
 
@@ -13,13 +24,26 @@ async function graphqlRequest(query, variables = {}) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: token, // API Gateway uses the token directly
+      Authorization: token, // API Gateway uses the ID token directly
     },
     body: JSON.stringify({
       query,
       variables,
     }),
   });
+
+  if (response.status === 401 && !isRetry) {
+    console.log("Token expired or invalid. Attempting to refresh and retry...");
+    
+    // By calling getCurrentUserToken again, we force the refresh logic.
+    // The previous call might have used a cached token from localStorage that was expired.
+    // This call will force a round-trip to Cognito via getValidSession().
+    await authService.getCurrentUserToken(); 
+
+    // Retry the request once.
+    return graphqlRequest(query, variables, true);
+  }
+
 
   if (!response.ok) {
     throw new Error(`API request failed with status ${response.status}`);
@@ -28,6 +52,13 @@ async function graphqlRequest(query, variables = {}) {
   const result = await response.json();
 
   if (result.errors) {
+    // Check for specific auth errors from AppSync/GraphQL if applicable
+    const authError = result.errors.find(e => e.errorType === 'Unauthorized');
+    if (authError && !isRetry) {
+        console.log("GraphQL returned Unauthorized. Attempting to refresh and retry...");
+        await authService.getCurrentUserToken();
+        return graphqlRequest(query, variables, true);
+    }
     throw new Error(result.errors[0].message || "GraphQL error occurred");
   }
 

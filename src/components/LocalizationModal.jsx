@@ -5,7 +5,7 @@ import './LocalizationModal.css';
 
 const deepCopy = (obj) => JSON.parse(JSON.stringify(obj));
 
-const createNewLocalization = (obj) => ({
+const createNewLocalization = () => ({
   lang: '',
   country: '',
   productName: '',
@@ -20,14 +20,14 @@ function LocalizationModal({ product, isOpen, onClose, onSave }) {
   const [originalLocalizations, setOriginalLocalizations] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
-  const [submitted, setSubmitted] = useState(false); // Track if save has been attempted
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     if (product && product.localizations) {
       const copiedLocalizations = deepCopy(product.localizations);
       setLocalizations(copiedLocalizations);
       setOriginalLocalizations(deepCopy(copiedLocalizations));
-      setSubmitted(false); // Reset submission state when modal opens/re-opens
+      setSubmitted(false);
       setError('');
     }
   }, [product, isOpen]);
@@ -42,7 +42,7 @@ function LocalizationModal({ product, isOpen, onClose, onSave }) {
   };
 
   const handleAddLocalization = () => {
-    setLocalizations([...localizations, createNewLocalization(product.category)]);
+    setLocalizations([...localizations, createNewLocalization()]);
   };
 
   const handleDeleteLocalization = (indexToDelete) => {
@@ -54,75 +54,87 @@ function LocalizationModal({ product, isOpen, onClose, onSave }) {
   };
 
   const handleSaveChanges = async () => {
-    setSubmitted(true); // Mark that a save attempt has been made
-    setIsSaving(true);
+    setSubmitted(true);
     setError('');
 
+    // --- 1. Client-side validation (for both new and existing products) ---
     for (const loc of localizations) {
       if (!loc.lang || !loc.country || !loc.productName) {
         setError('Please fill in Language, Country, and Product Name for all localizations.');
-        setIsSaving(false);
         return;
       }
     }
 
-    const mutations = [];
-    const sku = product.sku;
+    // --- 2. Divert logic based on whether the product is new or existing ---
+    if (product.isNew) {
+      // For NEW products: Clean up localizations before saving
+      const cleanedLocalizations = localizations.map(({ _tempId, ...loc }) => ({
+        ...loc, price: parseFloat(loc.price) || 0
+      }));
 
-    originalLocalizations.forEach(origLoc => {
-      if (!localizations.some(l => l.lang === origLoc.lang && l.country === origLoc.country)) {
-        mutations.push(apiService.removeLocalization(sku, origLoc.lang, origLoc.country));
-      }
-    });
+      const updatedProductForState = { ...product, localizations: cleanedLocalizations };
+      onSave(updatedProductForState);
+    } else {
+      // For EXISTING products: Perform API calls as before
+      setIsSaving(true);
+      const mutations = [];
+      const sku = product.sku;
 
-    localizations.forEach(loc => {
-      const original = originalLocalizations.find(ol => ol.lang === loc.lang && ol.country === loc.country);
-      
-      const { _tempId, ...locData } = loc;
-      const localizationPayload = {
-        ...locData,
-        price: parseFloat(locData.price) || 0,
-      };
+      originalLocalizations.forEach(origLoc => {
+        if (!localizations.some(l => l.lang === origLoc.lang && l.country === origLoc.country)) {
+          mutations.push(apiService.removeLocalization(sku, origLoc.lang, origLoc.country));
+        }
+      });
 
-      if (loc._tempId) {
-        mutations.push(apiService.addLocalization(sku, localizationPayload));
-      } else if (original && JSON.stringify(loc) !== JSON.stringify(original)) {
-        mutations.push(apiService.updateLocalization(sku, localizationPayload));
-      }
-    });
+      localizations.forEach(loc => {
+        const original = originalLocalizations.find(ol => ol.lang === loc.lang && ol.country === loc.country);
+        const { _tempId, ...locData } = loc;
+        const localizationPayload = { ...locData, price: parseFloat(locData.price) || 0 };
 
-    if (mutations.length === 0) {
-      onClose();
-      return;
-    }
+        if (loc._tempId) {
+          mutations.push(apiService.addLocalization(sku, localizationPayload));
+        } else if (original && JSON.stringify(loc) !== JSON.stringify(original)) {
+          mutations.push(apiService.updateLocalization(sku, localizationPayload));
+        }
+      });
 
-    try {
-      const results = await Promise.allSettled(mutations);
-      const failures = results.filter(r => r.status === 'rejected');
-      if (failures.length > 0) {
-        throw new Error(failures.map(f => f.reason.message).join(', '));
-      }
-      
-      const successfulResults = results.filter(r => r.status === 'fulfilled');
-      const lastResult = successfulResults[successfulResults.length - 1].value;
-      const finalProductState = lastResult.updateLocalization || lastResult.addLocalization || lastResult.removeLocalization;
-      
-      if (!finalProductState) {
-        throw new Error("Could not retrieve updated product state from API response.");
+      if (mutations.length === 0) {
+        setIsSaving(false);
+        onClose();
+        return;
       }
 
-      onSave(finalProductState);
-    } catch (err) {
-      setError(`Failed to save changes: ${err.message}`);
-    } finally {
-      setIsSaving(false);
+      try {
+        const results = await Promise.allSettled(mutations);
+        const failures = results.filter(r => r.status === 'rejected');
+        if (failures.length > 0) {
+          throw new Error(failures.map(f => f.reason.message).join(', '));
+        }
+        
+        const successfulResults = results.filter(r => r.status === 'fulfilled');
+        const lastResult = successfulResults[successfulResults.length - 1].value;
+        const finalProductState = lastResult.updateLocalization || lastResult.addLocalization || lastResult.removeLocalization;
+        
+        if (!finalProductState) {
+          throw new Error("Could not retrieve updated product state from API response.");
+        }
+        onSave(finalProductState);
+      } catch (err) {
+        setError(`Failed to save changes: ${err.message}`);
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
   return (
     <div className="modal-overlay">
       <div className="modal-content">
-        {/* ... (Spinner and modal header are the same) ... */}
+        <Spinner show={isSaving} />
+        <header className="modal-header">
+            <h2>Edit Localizations for {product.isNew ? `New Product (${product.sku || 'No SKU'})` : `SKU: ${product.sku}`}</h2>
+            <button className="close-button" onClick={onClose}>&times;</button>
+        </header>
         <div className="modal-body">
           {error && <p className="error-message" style={{marginBottom: '1rem'}}>{error}</p>}
           <table>
