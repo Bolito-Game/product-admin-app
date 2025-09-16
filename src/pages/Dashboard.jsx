@@ -43,13 +43,28 @@ function Dashboard() {
   const [isTranslationsModalOpen, setIsTranslationsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
 
+  // State to manage sorting configuration
+  const [productSortConfig, setProductSortConfig] = useState({ key: 'sku', direction: 'ascending' });
+  const [categorySortConfig, setCategorySortConfig] = useState({ key: 'category', direction: 'ascending' });
+
   const hasChanges = useMemo(() => {
     const productsChanged = JSON.stringify(products) !== JSON.stringify(originalProducts);
     const categoriesChanged = JSON.stringify(categories) !== JSON.stringify(originalCategories);
     return productsChanged || categoriesChanged;
   }, [products, originalProducts, categories, originalCategories]);
+  
+  const hasCategoryChanges = useMemo(() => {
+    return JSON.stringify(categories) !== JSON.stringify(originalCategories);
+  }, [categories, originalCategories]);
 
-  const validCategories = useMemo(() => categories.filter(c => !c.isDeleted), [categories]);
+  // MODIFIED: Added .sort() to alphabetize the category dropdown
+  const validCategories = useMemo(() =>
+    categories
+      .filter(c => !c.isDeleted)
+      .sort((a, b) => a.category.localeCompare(b.category)),
+    [categories]
+  );
+  
   const validCategoryNames = useMemo(() => new Set(validCategories.map(c => c.category)), [validCategories]);
 
   const duplicateSkuSet = useMemo(() => {
@@ -62,6 +77,51 @@ function Dashboard() {
     return new Set(Object.keys(skuCounts).filter(sku => skuCounts[sku] > 1));
   }, [products]);
 
+  // Memoized sorted products list
+  const sortedProducts = useMemo(() => {
+    let sortableItems = [...products];
+    if (productSortConfig.key !== null) {
+        sortableItems.sort((a, b) => {
+            const valA = a[productSortConfig.key] || '';
+            const valB = b[productSortConfig.key] || '';
+            const comparison = valA.toString().localeCompare(valB.toString(), undefined, { numeric: true });
+            return productSortConfig.direction === 'ascending' ? comparison : -comparison;
+        });
+    }
+    return sortableItems;
+  }, [products, productSortConfig]);
+
+  // Memoized sorted categories list
+  const sortedCategories = useMemo(() => {
+    let sortableItems = [...categories.filter(c => !c.isDeleted)];
+    if (categorySortConfig.key !== null) {
+        sortableItems.sort((a, b) => {
+            const valA = a[categorySortConfig.key] || '';
+            const valB = b[categorySortConfig.key] || '';
+            const comparison = valA.toString().localeCompare(valB.toString(), undefined, { numeric: true });
+            return categorySortConfig.direction === 'ascending' ? comparison : -comparison;
+        });
+    }
+    return sortableItems;
+  }, [categories, categorySortConfig]);
+
+  // Handlers to update sort configuration
+  const requestProductSort = (key) => {
+    let direction = 'ascending';
+    if (productSortConfig.key === key && productSortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setProductSortConfig({ key, direction });
+  };
+
+  const requestCategorySort = (key) => {
+    let direction = 'ascending';
+    if (categorySortConfig.key === key && categorySortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setCategorySortConfig({ key, direction });
+  };
+
   const handleLogout = useCallback(() => {
     authService.logout();
     navigate('/login');
@@ -72,7 +132,7 @@ function Dashboard() {
     setError('');
     try {
       const [productsResponse, categoriesResponse] = await Promise.all([
-        apiService.getAllProducts(50, productToken),
+        apiService.getAllProducts(25, productToken),
         !productToken ? apiService.getAllCategories(200) : Promise.resolve(null)
       ]);
 
@@ -146,11 +206,9 @@ function Dashboard() {
   const handleLocalizationsUpdate = (updatedProduct) => {
     setProducts(currentProducts =>
         currentProducts.map(p => {
-            // For new products, match by the temporary ID
             if (p.isNew && p.id === updatedProduct.id) {
                 return updatedProduct;
             }
-            // For existing products, match by SKU
             if (!p.isNew && p.sku === updatedProduct.sku) {
                 return updatedProduct;
             }
@@ -164,10 +222,20 @@ function Dashboard() {
   const handleCloseTranslationsModal = () => { setIsTranslationsModalOpen(false); setEditingCategory(null); };
   
   const handleSaveTranslations = (updatedCategory) => {
-    const newCategories = categories.map(c => c.category === updatedCategory.category ? updatedCategory : c);
-    setCategories(newCategories);
-    const newOriginalCategories = originalCategories.map(c => c.category === updatedCategory.category ? updatedCategory : c);
-    setOriginalCategories(newOriginalCategories);
+    setCategories(currentCategories =>
+        currentCategories.map(c =>
+            c.category === updatedCategory.category ? updatedCategory : c
+        )
+    );
+
+    if (!updatedCategory.isNew) {
+        setOriginalCategories(currentOriginals =>
+            currentOriginals.map(c =>
+                c.category === updatedCategory.category ? deepCopy(updatedCategory) : c
+            )
+        );
+    }
+
     handleCloseTranslationsModal();
   };
   
@@ -198,7 +266,10 @@ function Dashboard() {
     categories.forEach(c => {
       const original = originalCategories.find(oc => oc.category === c.category);
       if (c.isNew && !c.isDeleted) {
-        mutations.push(apiService.createCategory({ category: c.category, translations: [] }));
+        mutations.push(apiService.createCategory({ 
+            category: c.category, 
+            translations: c.translations 
+        }));
       } else if (original && !original.isNew && c.isDeleted) {
         mutations.push(apiService.deleteCategory(c.category));
       } 
@@ -230,6 +301,14 @@ function Dashboard() {
     }
   };
 
+  // Helper to get sort indicator
+  const getSortIndicator = (key, config) => {
+    if (config.key === key) {
+        return config.direction === 'ascending' ? ' ▲' : ' ▼';
+    }
+    return '';
+  };
+
   return (
     <div className="dashboard-container">
       <Spinner show={loading || isSaving} />
@@ -257,21 +336,29 @@ function Dashboard() {
       
       {error && <p className="error-message">{error}</p>}
 
+      {/* Products Section */}
       <div>
         <h2>Products</h2>
         <div className="table-wrapper">
           <table>
             <thead>
               <tr>
-                <th></th><th>SKU</th><th>Default Name</th><th>Category</th><th>Stock</th><th>Status</th><th>Image URL</th><th>Actions</th>
+                <th></th>
+                <th onClick={() => requestProductSort('sku')} className="sortable">
+                    SKU{getSortIndicator('sku', productSortConfig)}
+                </th>
+                <th>Default Name</th>
+                <th onClick={() => requestProductSort('category')} className="sortable">
+                    Category{getSortIndicator('category', productSortConfig)}
+                </th>
+                <th>Stock</th><th>Status</th><th>Image URL</th><th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {products.map(product => {
+              {sortedProducts.map(product => {
                 const identifier = product.isNew ? product.id : product.sku;
                 const isDirty = !product.isNew && originalProducts.find(op => op.sku === product.sku) && JSON.stringify(product) !== JSON.stringify(originalProducts.find(op => op.sku === product.sku));
                 const rowClass = product.isDeleted ? 'is-deleted' : product.isNew ? 'is-new' : isDirty ? 'is-dirty' : '';
-
                 const isCategoryDeleted = !product.isDeleted && product.category && !validCategoryNames.has(product.category);
                 const isCategoryMissing = !product.isDeleted && !product.category;
                 const isSkuDuplicate = !product.isDeleted && product.sku && duplicateSkuSet.has(product.sku);
@@ -295,6 +382,7 @@ function Dashboard() {
                       <select value={product.category} onChange={(e) => handleInputChange(identifier, 'category', e.target.value)}>
                         <option value="">-- Select --</option>
                         {isCategoryDeleted && <option value={product.category} style={{ color: 'red' }}>{product.category} (Deleted)</option>}
+                        {/* This list is now alphabetically sorted thanks to the change in `validCategories` */}
                         {validCategories.map(cat => <option key={cat.category} value={cat.category}>{cat.category}</option>)}
                       </select>
                     </td>
@@ -322,10 +410,16 @@ function Dashboard() {
         </div>
       </div>
       
+      {/* Categories Section */}
       <div className='section-buffer'>
         <div className="category-header">
             <h2>Product Categories</h2>
-            {validCategories.length === 0 && (
+            {hasCategoryChanges && !isSaving && (
+                <span className="category-reminder">
+                    Press "Save All Changes" to commit category modifications.
+                </span>
+            )}
+            {validCategories.length === 0 && !hasCategoryChanges && (
                 <span className="category-warning">
                     A category is required to create a product.
                 </span>
@@ -338,11 +432,18 @@ function Dashboard() {
           </div>
           <div className="table-wrapper">
             <table>
-              <thead><tr><th>Category</th><th>Actions</th></tr></thead>
+              <thead>
+                <tr>
+                    <th onClick={() => requestCategorySort('category')} className="sortable">
+                        Category{getSortIndicator('category', categorySortConfig)}
+                    </th>
+                    <th>Actions</th>
+                </tr>
+              </thead>
               <tbody>
-                {categories.filter(c => !c.isDeleted).map(cat => {
+                {sortedCategories.map(cat => {
                     const originalCat = originalCategories.find(oc => oc.category === cat.category);
-                    const isDirty = JSON.stringify(cat) !== JSON.stringify(originalCat);
+                    const isDirty = originalCat && JSON.stringify(cat) !== JSON.stringify(originalCat);
                     const rowClass = cat.isNew ? 'is-new' : isDirty ? 'is-dirty' : '';
 
                     return (
@@ -360,7 +461,7 @@ function Dashboard() {
                       </tr>
                     )
                 })}
-                {validCategories.length === 0 && (<tr><td colSpan="2">No categories found.</td></tr>)}
+                {sortedCategories.length === 0 && (<tr><td colSpan="2">No categories found.</td></tr>)}
               </tbody>
             </table>
           </div>

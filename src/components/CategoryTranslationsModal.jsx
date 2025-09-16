@@ -1,5 +1,3 @@
-// src/components/CategoryTranslationsModal.jsx
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { apiService } from '../services/apiService';
 import './CategoryTranslationsModal.css';
@@ -13,7 +11,6 @@ function CategoryTranslationsModal({ isOpen, onClose, category, onSave }) {
   const [newLang, setNewLang] = useState('');
   const [newText, setNewText] = useState('');
 
-  // isDirty check is still useful to enable/disable the save button
   const isDirty = useMemo(() => 
     JSON.stringify(translations) !== JSON.stringify(originalTranslations),
     [translations, originalTranslations]
@@ -31,9 +28,9 @@ function CategoryTranslationsModal({ isOpen, onClose, category, onSave }) {
     setNewLang('');
     setNewText('');
     setIsSaving(false);
-  }, [category]);
+  }, [category, isOpen]);
 
-  if (!isOpen) {
+  if (!isOpen || !category) {
     return null;
   }
 
@@ -63,26 +60,30 @@ function CategoryTranslationsModal({ isOpen, onClose, category, onSave }) {
     );
   };
 
-  // THIS IS YOUR ORIGINAL, CORRECT IMPLEMENTATION
   const handleSaveChanges = async () => {
+    // For NEW, unsaved categories, update parent state directly without an API call.
+    if (category.isNew) {
+      const updatedCategory = { ...category, translations: deepCopy(translations) };
+      onSave(updatedCategory); // Pass updated object back to Dashboard and close.
+      return; 
+    }
+
+    // For EXISTING categories, proceed with the API call.
     setIsSaving(true);
-    // The API expects an object containing the category name and the full list of translations
     const input = {
       category: category.category,
       translations: translations.map(({ lang, text }) => ({ lang, text }))
     };
 
     try {
-      // Assuming the API returns the updated category object or we can construct it
-      // For this example, we'll construct it to ensure the parent has the latest data.
       await apiService.upsertCategoryTranslation(input); 
-      
-      const updatedCategory = { ...category, translations: input.translations };
-      onSave(updatedCategory); // Notify parent to refresh and close the modal.
+      const updatedCategoryFromApi = { ...category, translations: input.translations };
+      onSave(updatedCategoryFromApi);
     } catch (error) {
       console.error("Failed to save category translations:", error);
       alert(`Error saving changes: ${error.message}`);
-      setIsSaving(false);
+    } finally {
+        setIsSaving(false);
     }
   };
   
@@ -95,7 +96,6 @@ function CategoryTranslationsModal({ isOpen, onClose, category, onSave }) {
       <div className="category-translations-modal-content">
         <h2>Manage Translations for "{category.category}"</h2>
         <fieldset disabled={isSaving} className="form-fieldset">
-          {/* ... JSX for inputs and list ... */}
           <div className="translations-list">
               {translations.map(trans => (
                   <div key={trans.lang} className="translation-item">
@@ -106,7 +106,7 @@ function CategoryTranslationsModal({ isOpen, onClose, category, onSave }) {
               ))}
           </div>
           <div className="add-translation-form">
-              <h3>Add New Translation</h3>
+              <h3>{`Add New Translation for ${category.category}`}</h3>
               <input type="text" placeholder="Language Code (e.g., 'es')" value={newLang} onChange={handleLangChange} maxLength="2" />
               <input type="text" placeholder="Translated Text" value={newText} onChange={e => setNewText(e.target.value)} />
               <button type="button" onClick={handleAddTranslation}>Add</button>
