@@ -116,3 +116,11 @@
 .modal-footer .cancel-button {
   background-color: #7f8c8d;
 }
+
+input:disabled,
+textarea:disabled {
+  background-color: #f2f2f2;
+  color: #888;
+  cursor: not-allowed;
+  border-color: #ddd;
+}

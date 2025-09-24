@@ -12,6 +12,7 @@ const createNewLocalization = () => ({
   description: '',
   price: 0.0,
   currency: 'USD',
+  // This temporary ID marks the entry as new and not persisted.
   _tempId: `NEW_LOC_${Date.now()}`
 });
 
@@ -57,7 +58,6 @@ function LocalizationModal({ product, isOpen, onClose, onSave }) {
     setSubmitted(true);
     setError('');
 
-    // --- 1. Client-side validation (for both new and existing products) ---
     for (const loc of localizations) {
       if (!loc.lang || !loc.country || !loc.productName) {
         setError('Please fill in Language, Country, and Product Name for all localizations.');
@@ -65,17 +65,13 @@ function LocalizationModal({ product, isOpen, onClose, onSave }) {
       }
     }
 
-    // --- 2. Divert logic based on whether the product is new or existing ---
     if (product.isNew) {
-      // For NEW products: Clean up localizations before saving
       const cleanedLocalizations = localizations.map(({ _tempId, ...loc }) => ({
         ...loc, price: parseFloat(loc.price) || 0
       }));
-
       const updatedProductForState = { ...product, localizations: cleanedLocalizations };
       onSave(updatedProductForState);
     } else {
-      // For EXISTING products: Perform API calls as before
       setIsSaving(true);
       const mutations = [];
       const sku = product.sku;
@@ -150,64 +146,70 @@ function LocalizationModal({ product, isOpen, onClose, onSave }) {
               </tr>
             </thead>
             <tbody>
-              {localizations.map((loc, index) => (
-                <tr key={loc._tempId || `${loc.lang}-${loc.country}`}>
-                  <td>
-                    <input
-                      type="text"
-                      value={loc.lang}
-                      placeholder="en"
-                      maxLength="2"
-                      className={submitted && !loc.lang ? 'input-error' : ''}
-                      onChange={e => handleInputChange(index, 'lang', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={loc.country}
-                      placeholder="us"
-                      maxLength="2"
-                      className={submitted && !loc.country ? 'input-error' : ''}
-                      onChange={e => handleInputChange(index, 'country', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={loc.productName}
-                      className={submitted && !loc.productName ? 'input-error' : ''}
-                      onChange={e => handleInputChange(index, 'productName', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <textarea
-                      value={loc.description}
-                      onChange={e => handleInputChange(index, 'description', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={loc.price}
-                      onChange={e => handleInputChange(index, 'price', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={loc.currency}
-                      onChange={e => handleInputChange(index, 'currency', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <button className="delete-loc-button" onClick={() => handleDeleteLocalization(index)} disabled={localizations.length <= 1}>
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {localizations.map((loc, index) => {
+                const isPersisted = !loc._tempId;
+
+                return (
+                  <tr key={loc._tempId || `${loc.lang}-${loc.country}`}>
+                    <td>
+                      <input
+                        type="text"
+                        value={loc.lang}
+                        placeholder="en"
+                        maxLength="2"
+                        className={submitted && !loc.lang ? 'input-error' : ''}
+                        onChange={e => handleInputChange(index, 'lang', e.target.value)}
+                        disabled={isPersisted}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        value={loc.country}
+                        placeholder="us"
+                        maxLength="2"
+                        className={submitted && !loc.country ? 'input-error' : ''}
+                        onChange={e => handleInputChange(index, 'country', e.target.value)}
+                        disabled={isPersisted}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        value={loc.productName}
+                        className={submitted && !loc.productName ? 'input-error' : ''}
+                        onChange={e => handleInputChange(index, 'productName', e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <textarea
+                        value={loc.description}
+                        onChange={e => handleInputChange(index, 'description', e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={loc.price}
+                        onChange={e => handleInputChange(index, 'price', e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        value={loc.currency}
+                        onChange={e => handleInputChange(index, 'currency', e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <button className="delete-loc-button" onClick={() => handleDeleteLocalization(index)} disabled={localizations.length <= 1}>
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
