@@ -58,6 +58,7 @@ function LocalizationModal({ product, isOpen, onClose, onSave }) {
     setSubmitted(true);
     setError('');
 
+    // Validate all localizations
     for (const loc of localizations) {
       if (!loc.lang || !loc.country || !loc.productName) {
         setError('Please fill in Language, Country, and Product Name for all localizations.');
@@ -66,51 +67,50 @@ function LocalizationModal({ product, isOpen, onClose, onSave }) {
     }
 
     if (product.isNew) {
+      // For new products, update the local state
       const cleanedLocalizations = localizations.map(({ _tempId, ...loc }) => ({
-        ...loc, price: parseFloat(loc.price) || 0
+        ...loc,
+        price: parseFloat(loc.price) || 0
       }));
       const updatedProductForState = { ...product, localizations: cleanedLocalizations };
       onSave(updatedProductForState);
     } else {
       setIsSaving(true);
-      const mutations = [];
-      const sku = product.sku;
-
-      originalLocalizations.forEach(origLoc => {
-        if (!localizations.some(l => l.lang === origLoc.lang && l.country === origLoc.country)) {
-          mutations.push(apiService.removeLocalization(sku, origLoc.lang, origLoc.country));
-        }
-      });
-
-      localizations.forEach(loc => {
-        const original = originalLocalizations.find(ol => ol.lang === loc.lang && ol.country === loc.country);
-        const { _tempId, ...locData } = loc;
-        const localizationPayload = { ...locData, price: parseFloat(locData.price) || 0 };
-
-        if (loc._tempId) {
-          mutations.push(apiService.addLocalization(sku, localizationPayload));
-        } else if (original && JSON.stringify(loc) !== JSON.stringify(original)) {
-          mutations.push(apiService.updateLocalization(sku, localizationPayload));
-        }
-      });
-
-      if (mutations.length === 0) {
-        setIsSaving(false);
-        onClose();
-        return;
-      }
-
       try {
-        const results = await Promise.allSettled(mutations);
-        const failures = results.filter(r => r.status === 'rejected');
-        if (failures.length > 0) {
-          throw new Error(failures.map(f => f.reason.message).join(', '));
+        // Collect all localizations to update or add
+        const localizationsToUpdate = localizations.map(({ _tempId, ...loc }) => ({
+          ...loc,
+          price: parseFloat(loc.price) || 0
+        }));
+
+        // Identify localizations to remove
+        const localizationsToRemove = originalLocalizations.filter(
+          origLoc => !localizations.some(l => l.lang === origLoc.lang && l.country === origLoc.country)
+        );
+
+        // Execute mutations
+        let finalProductState;
+        if (localizationsToUpdate.length > 0) {
+          // Use updateLocalization for both new and existing localizations
+          const result = await apiService.updateLocalization(product.sku, localizationsToUpdate);
+          finalProductState = result.updateLocalization;
         }
-        
-        const successfulResults = results.filter(r => r.status === 'fulfilled');
-        const lastResult = successfulResults[successfulResults.length - 1].value;
-        const finalProductState = lastResult.updateLocalization || lastResult.addLocalization || lastResult.removeLocalization;
-        
+
+        if (localizationsToRemove.length > 0) {
+          // Remove deleted localizations
+          const removePromises = localizationsToRemove.map(loc =>
+            apiService.removeLocalization(product.sku, loc.lang, loc.country)
+          );
+          const removeResults = await Promise.allSettled(removePromises);
+          const removeFailures = removeResults.filter(r => r.status === 'rejected');
+          if (removeFailures.length > 0) {
+            throw new Error(removeFailures.map(f => f.reason.message).join(', '));
+          }
+          // Use the last successful remove result to update the product state
+          const lastRemoveResult = removeResults[removeResults.length - 1].value;
+          finalProductState = lastRemoveResult.removeLocalization || finalProductState;
+        }
+
         if (!finalProductState) {
           throw new Error("Could not retrieve updated product state from API response.");
         }
@@ -128,8 +128,8 @@ function LocalizationModal({ product, isOpen, onClose, onSave }) {
       <div className="modal-content">
         <Spinner show={isSaving} />
         <header className="modal-header">
-            <h2>Edit Localizations for {product.isNew ? `New Product (${product.sku || 'No SKU'})` : `SKU: ${product.sku}`}</h2>
-            <button className="close-button" onClick={onClose}>&times;</button>
+          <h2>Edit Localizations for {product.isNew ? `New Product (${product.sku || 'No SKU'})` : `SKU: ${product.sku}`}</h2>
+          <button className="close-button" onClick={onClose}>&times;</button>
         </header>
         <div className="modal-body">
           {error && <p className="error-message" style={{marginBottom: '1rem'}}>{error}</p>}

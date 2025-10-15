@@ -282,10 +282,10 @@ export const apiService = {
     return graphqlRequest(mutation, { sku });
   },
 
-  addLocalization: (sku, localization) => {
+  addLocalization: (sku, localizations) => {
     const mutation = `
-      mutation AddLocalization($sku: ID!, $localization: LocalizationInput!) {
-        addLocalization(sku: $sku, localization: $localization) {
+      mutation AddLocalization($sku: ID!, $localizations: [LocalizationInput!]!) {
+        addLocalization(sku: $sku, localizations: $localizations) {
           sku
           category
           imageUrl
@@ -302,13 +302,13 @@ export const apiService = {
         }
       }
     `;
-    return graphqlRequest(mutation, { sku, localization });
+    return graphqlRequest(mutation, { sku, localizations });
   },
 
-  updateLocalization: (sku, localization) => {
+  updateLocalization: (sku, localizations) => {
     const mutation = `
-      mutation UpdateLocalization($sku: ID!, $localization: LocalizationInput!) {
-        updateLocalization(sku: $sku, localization: $localization) {
+      mutation UpdateLocalization($sku: ID!, $localizations: [LocalizationInput!]!) {
+        updateLocalization(sku: $sku, localizations: $localizations) {
           sku
           category
           imageUrl
@@ -325,7 +325,7 @@ export const apiService = {
         }
       }
     `;
-    return graphqlRequest(mutation, { sku, localization });
+    return graphqlRequest(mutation, { sku, localizations });
   },
 
   removeLocalization: (sku, lang, country) => {

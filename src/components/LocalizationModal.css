@@ -34,6 +34,7 @@
 .modal-header h2 {
   margin: 0;
   font-size: 1.5rem;
+  color: black;
 }
 
 .close-button {
@@ -42,6 +43,7 @@
   font-size: 2rem;
   cursor: pointer;
   line-height: 1;
+  color: black;
 }
 
 .modal-body {
