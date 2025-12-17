@@ -67,10 +67,10 @@ async function graphqlRequest(query, variables = {}, isRetry = false) {
 
 export const apiService = {
   
-  getProductBySku: (sku, lang = "en", country = "us") => {
-    const query = `
-      query GetProductBySku($sku: ID!, $lang: String, $country: String) {
-        getProductBySku(sku: $sku, lang: $lang, country: $country) {
+  getProductsBySku: (skus) => {
+    const query = `
+      query GetProductsBySku($skus: [ID!]!) {
+        getProductsBySku(skus: $skus) {
           sku
           category
           imageUrl
@@ -87,30 +87,33 @@ export const apiService = {
         }
       }
     `;
-    return graphqlRequest(query, { sku, lang, country });
-  },
+    return graphqlRequest(query, { skus });
+  },
 
-  getProductsByCategory: (category, lang = "en", country = "us") => {
+  getProductsByCategory: (category, limit = 20, nextToken = null) => {
     const query = `
-      query GetProductsByCategory($category: String!, $lang: String, $country: String) {
-        getProductsByCategory(category: $category, lang: $lang, country: $country) {
-          sku
-          category
-          imageUrl
-          productStatus
-          quantityInStock
-          localizations {
-            lang
-            country
-            productName
-            description
-            price
-            currency
+      query GetProductsByCategory($category: String!, $limit: Int, $nextToken: String) {
+        getProductsByCategory(category: $category, limit: $limit, nextToken: $nextToken) {
+          items {
+            sku
+            category
+            imageUrl
+            productStatus
+            quantityInStock
+            localizations {
+              lang
+              country
+              productName
+              description
+              price
+              currency
+            }
           }
+          nextToken 
         }
       }
     `;
-    return graphqlRequest(query, { category, lang, country });
+    return graphqlRequest(query, { category, limit, nextToken });
   },
 
   getAllProductsByLocalization: (lang = "en", country = "us", limit = 20, nextToken = null) => {
@@ -165,6 +168,32 @@ export const apiService = {
     return graphqlRequest(query, { limit, nextToken });
   },
 
+  searchProducts: (search, limit = 20, nextToken = null) => {
+    const query = `
+      query SearchProducts($search: String!, $limit: Int, $nextToken: String) {
+        searchProducts(search: $search, limit: $limit, nextToken: $nextToken) {
+          items {
+            sku
+            category
+            imageUrl
+            productStatus
+            quantityInStock
+            localizations {
+              lang
+              country
+              productName
+              description
+              price
+              currency
+            }
+          }
+          nextToken
+        }
+      }
+    `;
+    return graphqlRequest(query, { search, limit, nextToken });
+  },
+
   getCategory: (category) => {
     const query = `
       query GetCategory($category: ID!) {
@@ -195,7 +224,25 @@ export const apiService = {
         }
       }
     `;
-    return graphqlRequest(query, { limit, nextToken });
+    return graphqlRequest(query, { limit, nextToken }); 
+  },
+
+  searchCategories: (search, limit = 20, nextToken = null) => {
+    const query = `
+      query SearchCategories($search: String!, $limit: Int, $nextToken: String) {
+        searchCategories(search: $search, limit: $limit, nextToken: $nextToken) {
+          items {
+            category
+            translations {
+              lang
+              text
+            }
+          }
+          nextToken
+        }
+      }
+    `;
+    return graphqlRequest(query, { search, limit, nextToken });
   },
 
   getAllCategoriesByLanguage: (lang = "en", limit = 20, nextToken = null) => {

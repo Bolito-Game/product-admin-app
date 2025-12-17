@@ -1,0 +1,38 @@
+<!-- public/favicon.svg -->
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
+  <style>
+    .favicon{transition:all .4s}.favicon:hover{transform:scale(1.1)}
+    .favicon .fill-bar{transition:all .7s cubic-bezier(.18,.89,.32,1.28)}
+    .favicon:hover .fill-1{d:path("M6 8 h8 v16 h-8 Z")}
+    .favicon:hover .fill-2{d:path("M14 8 h8 v16 h-8 Z");transition-delay:80ms}
+    .favicon:hover .fill-3{d:path("M22 8 h8 v16 h-8 Z");transition-delay:160ms}
+    @keyframes pulse{0%,100%{fill:url(#fg1)}50%{fill:url(#fg2)}}
+    .favicon:hover .fill-bar{animation:pulse 1.6s ease-in-out .3s}
+  </style>
+
+  <!-- Deep blue → bright blue gradient (same family as your original blue) -->
+  <defs>
+    <linearGradient id="fg1"><stop offset="0%" stop-color="#1e40af"/><stop offset="100%" stop-color="#1e3a8a"/></linearGradient>
+    <linearGradient id="fg2"><stop offset="0%" stop-color="#60a5fa"/><stop offset="100%" stop-color="#3b82f6"/></linearGradient>
+  </defs>
+
+  <!-- Outer border -->
+  <rect x="1" y="1" width="30" height="30" rx="6" stroke="currentColor" stroke-width="2"/>
+
+  <!-- Three static bars -->
+  <g stroke="currentColor" stroke-width="2">
+    <rect x="6" y="8" width="8" height="16" rx="2"/>
+    <rect x="14" y="8" width="8" height="16" rx="2"/>
+    <rect x="22" y="8" width="8" height="16" rx="2"/>
+  </g>
+
+  <!-- Animated rising fills -->
+  <g class="fill-bar">
+    <path class="fill-1" d="M6 8 h8 v6 h-8 Z" fill="url(#fg1)"/>
+    <path class="fill-2" d="M14 18 h8 v6 h-8 Z" fill="url(#fg1)"/>
+    <path class="fill-3" d="M22 8 h8 v4 h-8 Z" fill="url(#fg1)"/>
+  </g>
+
+  <!-- Dark glass overlay for depth -->
+  <rect x="4" y="16" width="24" height="10" rx="5" fill="rgba(0,0,0,0.35)"/>
+</svg>
