@@ -267,10 +267,10 @@ export const apiService = {
           items {
             eventId
             orderId
-            logType
+            eventType  
             timestamp
-            message
-            details
+            summary    
+            resource
           }
           nextToken
         }

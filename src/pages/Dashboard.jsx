@@ -588,7 +588,7 @@ function Dashboard() {
       </>
       )}
 
-      {/* --- REPAIRED LOGS TAB CONTENT --- */}
+      {/* --- LOGS TAB CONTENT --- */}
       {activeTab === 'logs' && (
       <div>
           <h2>PayPal Event Logs</h2>
@@ -623,10 +623,10 @@ function Dashboard() {
                                   <div style={{fontSize: '0.8rem', color: '#999'}}>{log.eventId}</div>
                               </td>
                               <td data-label="Type">
-                                  <span className="event-type-badge">{log.logType}</span>
+                                  <span className="event-type-badge">{log.eventType}</span>
                               </td>
                               <td data-label="Order ID">{log.orderId}</td>
-                              <td data-label="Summary">{log.message}</td> 
+                              <td data-label="Summary">{log.summary}</td> 
                           </tr>
                       ))}
                       {eventLogs.length === 0 && !loading && (
