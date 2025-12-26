@@ -260,6 +260,26 @@ export const apiService = {
     return graphqlRequest(query, { lang, limit, nextToken });
   },
 
+  getOrderEvents: async (limit = 25, nextToken = null, orderId = null) => {
+    const query = `
+      query GetOrderEvents($limit: Int, $nextToken: String, $orderId: String) {
+        getOrderEvents(limit: $limit, nextToken: $nextToken, orderId: $orderId) {
+          items {
+            eventId
+            orderId
+            logType
+            timestamp
+            message
+            details
+          }
+          nextToken
+        }
+      }
+    `;
+    const result = await graphqlRequest(query, { limit, nextToken, orderId });
+    return result.getOrderEvents;
+  },
+
   createProduct: (input) => {
     const mutation = `
       mutation CreateProduct($input: CreateProductInput!) {

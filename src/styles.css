@@ -1,3 +1,4 @@
+/* --- Variables --- */
 :root {
   --color-background: #121212;
   --color-surface: #1e1e1e;
@@ -5,12 +6,15 @@
   --color-secondary: #b3b3b3;
   --color-disabled: #535353;
   --color-border: #333333;
-  --color-accent: #1db954; /* A splash of color for actions */
+  --color-accent: #1db954;
   --color-delete: #d9534f;
+  --color-delete-hover: #c9302c;
+  --color-row-hover: #2a2a2a;
   
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+/* --- Base & Reset --- */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -22,6 +26,7 @@ body {
   background-color: var(--color-background);
   color: var(--color-primary);
   overscroll-behavior: none;
+  line-height: 1.5;
 }
 
 #root {
@@ -30,9 +35,11 @@ body {
   min-height: 100vh;
 }
 
-/* --- General Components --- */
+/* --- Common Components --- */
+
+/* Buttons */
 button {
-  font-family: var(--font-family);
+  font-family: inherit;
   padding: 10px 15px;
   border-radius: 5px;
   border: 1px solid var(--color-border);
@@ -40,7 +47,7 @@ button {
   color: var(--color-primary);
   cursor: pointer;
   font-size: 1rem;
-  transition: background-color 0.2s, color 0.2s;
+  transition: all 0.2s ease;
 }
 
 button:hover:not(:disabled) {
@@ -55,18 +62,22 @@ button:disabled {
   opacity: 0.6;
 }
 
-/* Style for Delete buttons */
 button.delete-button {
-    background-color: var(--color-delete);
-    color: var(--color-primary);
+  background-color: var(--color-delete);
 }
 
 button.delete-button:hover:not(:disabled) {
-    background-color: #c9302c; /* Darker red on hover */
+  background-color: var(--color-delete-hover);
+  color: var(--color-primary);
 }
 
-input[type="text"], input[type="number"], input[type="password"], input[type="email"] {
-  font-family: var(--font-family);
+/* Inputs & Selects */
+input[type="text"], 
+input[type="number"], 
+input[type="password"], 
+input[type="email"],
+select {
+  font-family: inherit;
   width: 100%;
   padding: 10px;
   border: 1px solid var(--color-border);
@@ -74,6 +85,16 @@ input[type="text"], input[type="number"], input[type="password"], input[type="em
   color: var(--color-primary);
   border-radius: 5px;
   font-size: 1rem;
+}
+
+select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="white" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 1.2em;
+  padding-right: 30px;
 }
 
 /* --- Login Page --- */
@@ -97,10 +118,7 @@ input[type="text"], input[type="number"], input[type="password"], input[type="em
   gap: 20px;
 }
 
-.login-form h1 {
-  text-align: center;
-  margin-bottom: 10px;
-}
+.login-form h1 { text-align: center; }
 
 .error-message {
   color: var(--color-delete);
@@ -108,7 +126,7 @@ input[type="text"], input[type="number"], input[type="password"], input[type="em
   font-size: 0.9rem;
 }
 
-/* --- Dashboard --- */
+/* --- Dashboard Layout --- */
 .dashboard-container {
   display: flex;
   flex-direction: column;
@@ -116,52 +134,37 @@ input[type="text"], input[type="number"], input[type="password"], input[type="em
   padding: 1rem;
 }
 
-.dashboard-header {
+.dashboard-header, 
+.dashboard-controls,
+.search-controls,
+.category-header,
+.category-controls {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
   gap: 1rem;
-}
-
-.dashboard-controls {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 1rem;
   flex-wrap: wrap;
+  align-items: center;
 }
 
-.section-buffer {
-  margin-top: 4rem;
+.dashboard-header { justify-content: space-between; margin-bottom: 1rem; }
+.dashboard-controls, .search-controls { margin-bottom: 1rem; }
+
+.section-buffer { margin-top: 4rem; }
+
+/* --- Search & Category Controls --- */
+.search-input { flex-grow: 1; min-width: 200px; }
+
+.category-warning, .category-reminder {
+  font-size: 0.85rem;
+  font-style: italic;
 }
 
-.category-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
+.category-warning { color: var(--color-delete); }
+.category-reminder { color: var(--color-accent); font-weight: bold; }
 
-.category-warning {
-    color: var(--color-delete);
-    font-size: 0.8rem;
-    font-style: italic;
-}
-
-.category-manager .category-controls {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 1rem;
-  margin-top: 1rem;
-}
-
-.category-manager .category-controls input {
-  flex-grow: 1;
-}
-
+/* --- Table Styles --- */
 .table-wrapper {
   flex-grow: 1;
-  overflow: auto; /* Key for responsiveness */
+  overflow: auto;
   border: 1px solid var(--color-border);
   border-radius: 5px;
   margin-top: 1rem;
@@ -170,7 +173,7 @@ input[type="text"], input[type="number"], input[type="password"], input[type="em
 table {
   width: 100%;
   border-collapse: collapse;
-  white-space: nowrap; /* Prevent text wrapping in cells */
+  white-space: nowrap;
 }
 
 thead {
@@ -186,55 +189,26 @@ th, td {
   border-bottom: 1px solid var(--color-border);
 }
 
-/* --- Column Width Adjustments --- */
-/* Stock Column (5th child) */
-table th:nth-child(5), table td:nth-child(5) {
-    width: 120px;
-}
-/* Image URL Column (7th child) */
-table th:nth-child(7), table td:nth-child(7) {
-    width: 25%;
-}
+tbody tr:hover { background-color: var(--color-row-hover); }
 
-.actions-cell button + button {
-  margin-left: 10px;
-}
-
-tbody tr:hover {
-  background-color: #2a2a2a;
-}
-
-td input {
+/* Table specific inputs */
+td input, td select {
   padding: 8px;
-}
-
-/* Universal style for highlighting cell errors */
-td.cell-error {
-    outline: 2px solid var(--color-delete);
-    outline-offset: -2px;
-}
-
-td select {
-  font-family: var(--font-family);
   width: 100%;
-  padding: 8px;
-  border: 1px solid var(--color-border);
-  background-color: var(--color-background);
-  color: var(--color-primary);
-  border-radius: 5px;
-  font-size: 1rem;
-  cursor: pointer;
-  
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  background-image: url('data:image/svg+xml;utf8,<svg fill="white" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  background-size: 1.2em;
 }
 
-/* Row status indicators */
+td.cell-error {
+  outline: 2px solid var(--color-delete);
+  outline-offset: -2px;
+}
+
+/* Column Specifics */
+table th:nth-child(5), table td:nth-child(5) { width: 120px; }
+table th:nth-child(7), table td:nth-child(7) { width: 25%; }
+
+.actions-cell button + button { margin-left: 10px; }
+
+/* Row Status Indicators */
 tr.is-new { border-left: 3px solid var(--color-accent); }
 tr.is-dirty { border-left: 3px solid orange; }
 tr.is-deleted { 
@@ -244,20 +218,15 @@ tr.is-deleted {
 }
 tr.is-deleted input, tr.is-deleted select { pointer-events: none; }
 
+.sortable { cursor: pointer; user-select: none; }
+.sortable:hover { background-color: var(--color-surface); }
 
-.dashboard-footer {
-  padding-top: 1rem;
-  text-align: center;
-  padding-bottom: 1rem;
-}
+/* --- Feedback & Utilities --- */
+.dashboard-footer { padding: 1rem; text-align: center; }
 
-/* --- Spinner --- */
 .spinner-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
@@ -275,71 +244,130 @@ tr.is-deleted input, tr.is-deleted select { pointer-events: none; }
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  to { transform: rotate(360deg); }
 }
 
-.sortable {
-  cursor: pointer;
-  user-select: none; /* Prevents text selection on double-click */
-}
-.sortable:hover {
-  background-color: #f5f5f5; /* Optional: adds a hover effect */
-}
+/* --- Responsiveness --- */
 
-/* --- Dashboard Specific Styles (Additions to the provided CSS) --- */
+/* Mobile & Tablet Adjustments */
+@media (max-width: 768px) {
+  /* Stack the header and controls */
+  .dashboard-header, 
+  .dashboard-controls, 
+  .search-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
 
-/* Search Controls Container (NEW) */
-.search-controls {
-    display: flex;
-    gap: 10px;
-    margin-top: 15px;
-    margin-bottom: 15px; /* Spacing below the search bar */
-    align-items: center;
-    flex-wrap: wrap; /* Allows controls to stack on small screens */
-}
+  /* Force table to not behave like a table */
+  table, thead, tbody, th, td, tr {
+    display: block;
+  }
 
-/* Search Input (NEW) */
-.search-controls .search-input {
-    flex-grow: 1; /* Allows the search input to take up most of the space */
-    min-width: 200px; /* Ensures input is usable on smaller screens */
-}
+  /* Hide table headers (but keep for accessibility) */
+  thead tr {
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+  }
 
-/* Specific styling for the Search Button (optional, to distinguish from primary/delete) */
-.search-controls button {
-    background-color: var(--color-surface); /* Keep it matching the input theme */
-    color: var(--color-primary);
-    border: 1px solid var(--color-secondary);
-}
-
-.search-controls button:hover:not(:disabled) {
-    background-color: var(--color-accent); /* Use accent color for clear search hover */
-    color: var(--color-background);
-}
-
-/* Category Reminder/Warning Text (NEW) */
-.category-reminder {
-    color: var(--color-accent);
-    font-size: 0.9rem;
-    font-style: italic;
-    font-weight: bold;
-}
-
-/* General Input/Select inside table cells (to inherit theme) */
-table input[type="text"],
-table input[type="number"],
-table select {
-    width: 90%;
-    padding: 8px;
+  tr {
     border: 1px solid var(--color-border);
-    background-color: var(--color-background);
-    color: var(--color-primary);
-    border-radius: 5px;
-    box-sizing: border-box;
-    font-size: 1rem;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background-color: var(--color-surface);
+    border-radius: 8px;
+  }
+
+  td {
+    border: none;
+    border-bottom: 1px solid #333;
+    position: relative;
+    padding-left: 50%; /* Make space for the "label" */
+    white-space: normal;
+    text-align: right;
+  }
+
+  /* Label the data using a data-attribute (e.g., <td data-label="Stock">) */
+  td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 15px;
+    width: 45%;
+    padding-right: 10px;
+    white-space: nowrap;
+    text-align: left;
+    font-weight: bold;
+    color: var(--color-secondary);
+  }
+
+  /* Reset column widths for mobile */
+  table th:nth-child(5), table td:nth-child(5),
+  table th:nth-child(7), table td:nth-child(7) {
+    width: 100%;
+  }
+
+  .actions-cell {
+    text-align: center;
+    padding-left: 0;
+  }
 }
 
-/* Override select styling for table to ensure dark theme compatibility */
-td select {
-    background-image: url('data:image/svg+xml;utf8,<svg fill="white" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
+@media (max-width: 768px) {
+  /* Larger touch targets for buttons */
+  button {
+    min-height: 44px;
+    width: 100%; /* Stack buttons on mobile */
+    margin-bottom: 5px;
+  }
+
+  .actions-cell button + button {
+    margin-left: 0; /* Remove side margin when stacked */
+  }
+
+  /* Increase input height for easier tapping */
+  input[type="text"], 
+  input[type="number"], 
+  select {
+    height: 44px;
+  }
+}
+
+/* --- Tab Navigation --- */
+.tabs-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tab-button {
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--color-secondary);
+  padding: 10px 20px;
+  border-radius: 0;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-button:hover {
+  background: var(--color-surface);
+  color: var(--color-primary);
+}
+
+.tab-button.active {
+  border-bottom: 3px solid var(--color-accent);
+  color: var(--color-primary);
+}
+
+.event-type-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background-color: rgba(255,255,255,0.1);
+    font-family: monospace;
+    font-size: 0.9rem;
 }
