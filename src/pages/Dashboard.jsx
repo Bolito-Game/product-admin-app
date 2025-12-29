@@ -57,6 +57,8 @@ function Dashboard() {
   const [editingCategory, setEditingCategory] = useState(null);
   const [productSortConfig, setProductSortConfig] = useState({ key: 'sku', direction: 'ascending' });
   const [categorySortConfig, setCategorySortConfig] = useState({ key: 'category', direction: 'ascending' });
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+  const [selectedLog, setSelectedLog] = useState(null)
 
   // Mobile Responsiveness Hook
   useEffect(() => {
@@ -626,7 +628,17 @@ function Dashboard() {
                                   <span className="event-type-badge">{log.eventType}</span>
                               </td>
                               <td data-label="Order ID">{log.orderId}</td>
-                              <td data-label="Summary">{log.details}</td> 
+                              <td data-label="Summary">
+                                <button 
+                                  className="view-details-btn"
+                                  onClick={() => {
+                                    setSelectedLog(log);
+                                    setIsLogModalOpen(true);
+                                  }}
+                                >
+                                  View Details
+                                </button>
+                              </td> 
                           </tr>
                       ))}
                       {eventLogs.length === 0 && !loading && (
@@ -641,6 +653,42 @@ function Dashboard() {
               </div>
           </div>
       </div>
+      )}
+      {isLogModalOpen && selectedLog && (
+        <div className="modal-overlay">
+          <div className="modal-content log-modal">
+            <div className="modal-header">
+              <h2>Event Details</h2>
+              <button className="close-x" onClick={() => setIsLogModalOpen(false)}>&times;</button>
+            </div>
+            
+            <div className="log-modal-body">
+              <pre className="json-display">
+                {(() => {
+                  try {
+                    return JSON.stringify(JSON.parse(selectedLog.details), null, 2);
+                  } catch (e) {
+                    return selectedLog.details; // Fallback if not valid JSON
+                  }
+                })()}
+              </pre>
+            </div>
+
+            <div className="modal-footer">
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(selectedLog.details);
+                  alert('JSON copied to clipboard!');
+                }}
+              >
+                Copy JSON
+              </button>
+              <button className="delete-button" onClick={() => setIsLogModalOpen(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

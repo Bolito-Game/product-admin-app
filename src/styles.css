@@ -371,3 +371,72 @@ tr.is-deleted input, tr.is-deleted select { pointer-events: none; }
     font-family: monospace;
     font-size: 0.9rem;
 }
+
+/* --- Log Detail Modal Styles --- */
+
+/* Fixes the table from expanding by giving the Summary column a small fixed width */
+.active-tab-logs table th:last-child, 
+.active-tab-logs table td:last-child {
+  width: 120px;
+  text-align: center;
+}
+
+.view-details-btn {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+}
+
+.view-details-btn:hover {
+  background-color: var(--color-accent);
+  color: var(--color-background);
+}
+
+/* Modal Structure */
+.log-modal {
+  max-width: 800px;
+  width: 90%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.log-modal-body {
+  flex-grow: 1;
+  overflow: auto; /* Makes the JSON scrollable */
+  background-color: #000;
+  padding: 1rem;
+  border-radius: 5px;
+  margin: 1rem 0;
+  border: 1px solid var(--color-border);
+}
+
+.json-display {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.9rem;
+  color: #1db954; /* Green terminal look */
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.close-x {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--color-secondary);
+  cursor: pointer;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
