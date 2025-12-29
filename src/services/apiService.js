@@ -269,8 +269,7 @@ export const apiService = {
             orderId
             eventType  
             timestamp
-            summary    
-            resource
+            details
           }
           nextToken
         }

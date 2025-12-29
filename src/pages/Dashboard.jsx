@@ -626,7 +626,7 @@ function Dashboard() {
                                   <span className="event-type-badge">{log.eventType}</span>
                               </td>
                               <td data-label="Order ID">{log.orderId}</td>
-                              <td data-label="Summary">{log.summary}</td> 
+                              <td data-label="Summary">{log.details}</td> 
                           </tr>
                       ))}
                       {eventLogs.length === 0 && !loading && (
