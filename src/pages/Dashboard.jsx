@@ -5,6 +5,7 @@ import { authService } from '../services/authService';
 import Spinner from '../components/Spinner';
 import LocalizationModal from '../components/LocalizationModal';
 import CategoryTranslationsModal from '../components/CategoryTranslationsModal';
+import OrderDetailsModal from '../components/OrdersDetailModal';
 
 const deepCopy = (obj) => JSON.parse(JSON.stringify(obj));
 
@@ -21,7 +22,7 @@ const PRODUCT_STATUSES = ['ACTIVE', 'INACTIVE', 'DISCONTINUED'];
 
 function Dashboard() {
   // Navigation
-  const [activeTab, setActiveTab] = useState('inventory');
+  const [activeTab, setActiveTab] = useState('orders');
 
   // Product State
   const [products, setProducts] = useState([]);
@@ -39,10 +40,15 @@ function Dashboard() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [categorySearch, setCategorySearch] = useState('');
 
-  // Webhook Logs State
+  // Webhook & Orders State
   const [eventLogs, setEventLogs] = useState([]);
   const [eventNextToken, setEventNextToken] = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [orderNextToken, setOrderNextToken] = useState(null);
   const [logSearchOrderId, setLogSearchOrderId] = useState('');
+  const [isOrderDetailsOpen, setIsOrderDetailsOpen] = useState(false);
+  const [selectedOrderDetails, setSelectedOrderDetails] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   // General Component State
   const [loading, setLoading] = useState(true);
@@ -78,7 +84,7 @@ function Dashboard() {
       });
     };
     applyTableLabels();
-  }, [products, displayedCategories, eventLogs, activeTab]);
+  }, [products, displayedCategories, eventLogs, orders, activeTab]);
 
   const hasChanges = useMemo(() => {
     const productsChanged = JSON.stringify(products) !== JSON.stringify(originalProducts);
@@ -199,27 +205,81 @@ function Dashboard() {
     }
   }, [handleLogout, products, isProductSearchActive, categories.length]);
 
-  // --- REPAIRED LOGS FETCH LOGIC ---
-  const fetchLogs = useCallback(async (token = null, isNewSearch = false) => {
-      setLoading(true);
-      setError('');
-      try {
-          // Pass logSearchOrderId to enable server-side filtering
-          const response = await apiService.getOrderEvents(25, token, logSearchOrderId); 
-          const newLogs = isNewSearch ? response.items : [...eventLogs, ...response.items];
-          setEventLogs(newLogs);
-          setEventNextToken(response.nextToken);
-      } catch (err) {
-          setError(`Error fetching logs: ${err.message}`);
-      } finally {
-          setLoading(false);
-      }
+  const fetchLogs = useCallback(async (token = null, isNewSearch = false, searchOverride = null) => {
+    setLoading(true);
+    setError('');
+    try {
+        const searchId = searchOverride !== null ? searchOverride : logSearchOrderId.trim();      
+        
+        if (isNewSearch && searchId) {
+            // Check local state to prevent unnecessary backend call
+            const localMatches = eventLogs.filter(log => log.orderId === searchId);
+            if (localMatches.length > 0) {
+                setEventLogs(localMatches);
+                setEventNextToken(null);
+                setLoading(false);
+                return;
+            }
+        }
+        // If not found locally, proceed to backend
+        const response = await apiService.getOrderEvents(25, token, searchId); 
+        const newLogs = isNewSearch ? response.items : [...eventLogs, ...response.items];
+        setEventLogs(newLogs);
+        setEventNextToken(response.nextToken);
+    } catch (err) {
+        setError(`Error fetching logs: ${err.message}`);
+    } finally {
+        setLoading(false);
+    }
   }, [eventLogs, logSearchOrderId]);
+
+  const fetchOrders = useCallback(async (token = null, isNewSearch = false, searchOverride = null) => {
+    setLoading(true);
+    setError('');
+    try {
+        // Use override if provided, otherwise use state
+        const searchId = searchOverride !== null ? searchOverride : logSearchOrderId.trim();
+        
+        if (isNewSearch && searchId) {
+            // 1. Check local state first to avoid backend call
+            const localMatch = orders.find(o => o.orderId === searchId);
+            if (localMatch) {
+                setOrders([localMatch]);
+                setOrderNextToken(null);
+                setLoading(false);
+                return;
+            }
+            // 2. If not local, fetch the specific order
+            const response = await apiService.getOrder(searchId);
+            if (response.getOrder) {
+                setOrders([response.getOrder]);
+                setOrderNextToken(null);
+            } else {
+                setOrders([]);
+            }
+            setLoading(false);
+            return;
+        }
+
+        // 3. Only fetch all orders if there is NO searchId
+        const response = await apiService.getAllOrders(25, token);
+        const newOrders = isNewSearch ? response.getAllOrders.items : [...orders, ...response.getAllOrders.items];
+        setOrders(newOrders);
+        setOrderNextToken(response.getAllOrders.nextToken);
+    } catch (err) {
+        setError(`Error fetching orders: ${err.message}`);
+    } finally {
+        setLoading(false);
+    }
+  }, [orders, logSearchOrderId]);
 
   // Initial Load & Tab Switching
   useEffect(() => { 
       if (activeTab === 'inventory' && products.length === 0) fetchInventory();
-      if (activeTab === 'logs') fetchLogs(null, true);
+      if (activeTab === 'orders' && eventLogs.length === 0) {
+          fetchLogs(null, true);
+          fetchOrders(null, true);
+      }
   }, [activeTab]);
 
 
@@ -433,9 +493,28 @@ function Dashboard() {
     }
   }, [categorySearch, categories]);
 
-  // Handler (Logs Search)
   const handleLogSearch = () => {
     fetchLogs(null, true);
+    fetchOrders(null, true);
+  };
+
+  const handleClearOrderSearch = () => {
+    setLogSearchOrderId('');
+    fetchLogs(null, true, '');
+    fetchOrders(null, true, '');
+  };
+
+  const handleViewDetails = async (orderId) => {
+    setDetailsLoading(true);
+    setIsOrderDetailsOpen(true);
+    try {
+        const details = await apiService.getOrderDetails(orderId);
+        setSelectedOrderDetails(details);
+    } catch (err) {
+        setError(`Error fetching order details: ${err.message}`);
+    } finally {
+        setDetailsLoading(false);
+    }
   };
 
   return (
@@ -451,11 +530,11 @@ function Dashboard() {
 
       {/* TABS */}
       <div className="tabs-container">
+        <button className={`tab-button ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')} >
+            Product Orders
+        </button>
         <button className={`tab-button ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>
             Inventory Management
-        </button>
-        <button className={`tab-button ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => setActiveTab('logs')}>
-            PayPal Event Logs
         </button>
       </div>
       
@@ -590,10 +669,9 @@ function Dashboard() {
       </>
       )}
 
-      {/* --- LOGS TAB CONTENT --- */}
-      {activeTab === 'logs' && (
-      <div>
-          <h2>PayPal Event Logs</h2>
+      {/* --- ORDERS AND EVENTS TAB CONTENT --- */}
+      {activeTab === 'orders' && (
+      <div>          
           <div className="search-controls">
               <input 
                 type="text" 
@@ -603,93 +681,138 @@ function Dashboard() {
                 className="search-input"
               />
               <button onClick={handleLogSearch}>Filter</button>
-              {logSearchOrderId && <button onClick={() => { setLogSearchOrderId(''); fetchLogs(null, true); }}>Clear</button>}
+              {logSearchOrderId && <button onClick={handleClearOrderSearch}>Clear</button>}
           </div>
 
-          <div className="table-wrapper">
-              <table>
-                  <thead>
-                      <tr>
-                          <th>Date</th>
-                          <th>Type</th>
-                          <th>Order ID</th>
-                          <th>Summary</th>
-                      </tr>
-                  </thead>
-                  <tbody>
-                      {/* Mapping to logType and message as per new GraphQL Schema */}
-                      {eventLogs.map((log) => (
-                          <tr key={log.eventId}>
-                              <td data-label="Date">
-                                  {new Date(log.timestamp).toLocaleString()}
-                                  <div style={{fontSize: '0.8rem', color: '#999'}}>{log.eventId}</div>
-                              </td>
-                              <td data-label="Type">
-                                  <span className="event-type-badge">{log.eventType}</span>
-                              </td>
-                              <td data-label="Order ID">{log.orderId}</td>
-                              <td data-label="Summary">
-                                <button 
-                                  className="view-details-btn"
-                                  onClick={() => {
-                                    setSelectedLog(log);
-                                    setIsLogModalOpen(true);
-                                  }}
-                                >
-                                  View Details
-                                </button>
-                              </td> 
-                          </tr>
-                      ))}
-                      {eventLogs.length === 0 && !loading && (
-                          <tr><td colSpan="4" style={{textAlign: 'center'}}>No events found.</td></tr>
-                      )}
-                  </tbody>
-              </table>
-              <div className="dashboard-footer">
-                  <button onClick={() => fetchLogs(eventNextToken)} disabled={!eventNextToken || loading}>
-                      {loading ? 'Loading...' : 'Load More Events'}
-                  </button>
-              </div>
-          </div>
+          {/* TABLE 1: PRODUCT ORDERS */}
+          <section>
+            <h2>Product Orders</h2>
+            <div className="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Amount</th>
+                            <th>Currency</th>
+                            <th>Status</th>
+                            <th>Date Created</th>
+                            <th>Summary</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {orders.map((order) => (
+                            <tr key={order.orderId}>
+                                <td data-label="Order ID">{order.orderId}</td>
+                                <td data-label="Amount">{order.amount}</td>
+                                <td data-label="Currency">{order.currency}</td>
+                                <td data-label="Status">
+                                    <span className="event-type-badge" style={{color: order.status === 'COMPLETED' ? 'var(--color-accent)' : 'orange'}}>
+                                        {order.status}
+                                    </span>
+                                </td>
+                                <td data-label="Date Created">{new Date(order.createdAt).toLocaleString()}</td>
+                                <td>
+                                    <button className="view-details-btn" onClick={() => handleViewDetails(order.orderId)}>
+                                        View Details
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                        {orders.length === 0 && !loading && (
+                            <tr><td colSpan="5" style={{textAlign: 'center'}}>No orders found.</td></tr>
+                        )}
+                    </tbody>
+                </table>
+                <div className="dashboard-footer">
+                    <button onClick={() => fetchOrders(orderNextToken)} disabled={!orderNextToken || loading}>
+                        {loading ? 'Loading...' : 'Load More Orders'}
+                    </button>
+                </div>
+            </div>
+          </section>
+
+          {/* TABLE 2: PAYPAL EVENT LOGS */}
+          <section className="section-buffer">
+            <h2>PayPal Event Logs</h2>
+            <div className="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Order ID</th>
+                            <th>Summary</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {eventLogs.map((log) => (
+                            <tr key={log.eventId}>
+                                <td data-label="Date">
+                                    {new Date(log.timestamp).toLocaleString()}
+                                    <div style={{fontSize: '0.8rem', color: '#999'}}>{log.eventId}</div>
+                                </td>
+                                <td data-label="Type">
+                                    <span className="event-type-badge">{log.eventType}</span>
+                                </td>
+                                <td data-label="Order ID">{log.orderId}</td>
+                                <td data-label="Summary">
+                                  <button 
+                                    className="view-details-btn"
+                                    onClick={() => {
+                                      setSelectedLog(log);
+                                      setIsLogModalOpen(true);
+                                    }}
+                                  >
+                                    View Details
+                                  </button>
+                                </td> 
+                            </tr>
+                        ))}
+                        {eventLogs.length === 0 && !loading && (
+                            <tr><td colSpan="4" style={{textAlign: 'center'}}>No events found.</td></tr>
+                        )}
+                    </tbody>
+                </table>
+                <div className="dashboard-footer">
+                    <button onClick={() => fetchLogs(eventNextToken)} disabled={!eventNextToken || loading}>
+                        {loading ? 'Loading...' : 'Load More Events'}
+                    </button>
+                </div>
+            </div>
+          </section>
       </div>
       )}
+
+      {/* MODAL FOR LOG DETAILS */}
       {isLogModalOpen && selectedLog && (
-        <div className="modal-overlay">
-          <div className="modal-content log-modal">
+        <div className="spinner-overlay" onClick={() => setIsLogModalOpen(false)}>
+          <div className="login-form log-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Event Details</h2>
               <button className="close-x" onClick={() => setIsLogModalOpen(false)}>&times;</button>
             </div>
-            
             <div className="log-modal-body">
               <pre className="json-display">
                 {(() => {
-                  try {
-                    return JSON.stringify(JSON.parse(selectedLog.details), null, 2);
-                  } catch (e) {
-                    return selectedLog.details; // Fallback if not valid JSON
-                  }
+                  try { return JSON.stringify(JSON.parse(selectedLog.details), null, 2); } 
+                  catch (e) { return selectedLog.details; }
                 })()}
               </pre>
             </div>
-
             <div className="modal-footer">
-              <button 
-                onClick={() => {
-                  navigator.clipboard.writeText(selectedLog.details);
-                  alert('JSON copied to clipboard!');
-                }}
-              >
-                Copy JSON
-              </button>
-              <button className="delete-button" onClick={() => setIsLogModalOpen(false)}>
-                Close
-              </button>
+              <button onClick={() => { navigator.clipboard.writeText(selectedLog.details); alert('Copied!'); }}>Copy JSON</button>
+              <button className="delete-button" onClick={() => setIsLogModalOpen(false)}>Close</button>
             </div>
           </div>
         </div>
       )}
+
+      <OrderDetailsModal 
+          isOpen={isOrderDetailsOpen}
+          onClose={() => setIsOrderDetailsOpen(false)}
+          details={selectedOrderDetails}
+          loading={detailsLoading}
+      />
     </div>
   );
 }

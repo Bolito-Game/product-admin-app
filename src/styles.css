@@ -440,3 +440,10 @@ tr.is-deleted input, tr.is-deleted select { pointer-events: none; }
   gap: 1rem;
   justify-content: flex-end;
 }
+
+.loading-spinner {
+    text-align: center;
+    padding: 40px;
+    font-style: italic;
+    color: #666;
+}

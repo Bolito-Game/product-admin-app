@@ -279,6 +279,56 @@ export const apiService = {
     return result.getOrderEvents;
   },
 
+  getAllOrders: (limit = 25, nextToken = null) => {
+    const query = `
+      query GetAllOrders($limit: Int, $nextToken: String) {
+        getAllOrders(limit: $limit, nextToken: $nextToken) {
+          items {
+            orderId
+            amount
+            currency
+            status
+            createdAt
+          }
+          nextToken
+        }
+      }
+    `;
+    return graphqlRequest(query, { limit, nextToken });
+  },
+
+  getOrder: (orderId) => {
+    const query = `
+      query GetOrder($orderId: ID!) {
+        getOrder(orderId: $orderId) {
+          orderId
+          amount
+          currency
+          status
+          createdAt
+        }
+      }
+    `;
+    return graphqlRequest(query, { orderId });
+  },
+
+  getOrderDetails: (orderId) => {
+    const query = `
+      query GetOrderDetails($orderId: ID!) {
+        getOrderDetails(orderId: $orderId) {
+          amount
+          currency
+          products {
+            sku
+            quantity
+            price
+          }
+        }
+      }
+    `;
+    return graphqlRequest(query, { orderId });
+  },
+
   createProduct: (input) => {
     const mutation = `
       mutation CreateProduct($input: CreateProductInput!) {

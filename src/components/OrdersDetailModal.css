@@ -1,0 +1,111 @@
+/* OrdersDetailModal.css */
+/* OrdersDetailModal.css */
+
+.modal-container.dark-theme {
+    background-color: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    max-height: 80vh;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    /* Added horizontal padding to separate Title and X from edges */
+    padding: 15px 25px; 
+    border-bottom: 1px solid #333;
+}
+
+.modal-header h2 {
+    color: #ffffff;
+    margin: 0;
+    /* Extra margin-left for the title if needed */
+    margin-left: 5px; 
+}
+
+.close-button {
+    background: none;
+    border: none;
+    font-size: 1.8rem;
+    cursor: pointer;
+    /* Separation from right edge */
+    margin-right: 5px; 
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    /* Vertical and Horizontal padding for button separation */
+    padding: 15px 25px; 
+    border-top: 1px solid #333;
+}
+
+.secondary-button {
+    /* Separation from bottom and right edges */
+    margin-bottom: 5px;
+    margin-right: 5px;
+}
+
+/* ... keep your existing .empty-state and .order-total styles ... */
+
+.modal-container.dark-theme {
+    background-color: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px; /* Limits width so it looks like a window, not a full-screen stretch */
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    max-height: 80vh;
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.empty-state-container {
+    text-align: center; 
+    padding: 60px 20px;
+}
+
+.empty-state-text {
+    color: #ffffff !important;
+    font-size: 1.2rem;
+    font-weight: 500;
+}
+
+.order-total-display {
+    margin-top: 20px; 
+    text-align: right; 
+    font-weight: bold; 
+    font-size: 1.3rem;
+    color: #00ff88; /* High-contrast green */
+    padding-top: 15px;
+    border-top: 1px solid #333;
+}
+
+.loading-spinner-text {
+    text-align: center;
+    padding: 40px;
+    color: #ffffff;
+    font-size: 1.1rem;
+}
+
+/* Ensure table text is readable on dark background */
+.inventory-table td {
+    color: #ffffff;
+}
+
+.inventory-table th {
+    background-color: #2a2a2a;
+    color: #00ff88;
+}
